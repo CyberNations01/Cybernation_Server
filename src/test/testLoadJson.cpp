@@ -155,11 +155,46 @@ void testWalkPath()
 
 }
 
+
+void testLoadGoal()
+{
+    std::vector<Goal> goals = DataLoader::loadGoal("data/goal.json");
+
+    for (const auto& goal : goals) {
+        std::cout << "=== Goal " << goal.getId() << " ===" << std::endl;
+        std::cout << "Name: " << goal.getName() << std::endl;
+        std::cout << "Reverse Goal ID: " << goal.getReverseGoalId() << std::endl;
+
+        std::cout << "Victory Conditions:" << std::endl;
+        for (const auto& vc : goal.getConditions()) {
+            std::cout << "  Type: " << vc.type
+                      << " | Op: " << comparatorToStr(vc.op)
+                      << " | Num: " << vc.num;
+            if (vc.position.has_value())
+                std::cout << " | Position: " << vc.position.value();
+            std::cout << std::endl;
+        }
+
+        std::cout << "Stack Effects:" << std::endl;
+        for (const auto& [stackType, values] : goal.getStackEffect()) {
+            std::cout << "  " << stackTypeToStr(stackType) << ": [";
+            for (int i = 0; i < (int)values.size(); i++) {
+                if (i > 0) std::cout << ", ";
+                std::cout << values[i];
+            }
+            std::cout << "]" << std::endl;
+        }
+
+        std::cout << std::endl;
+    }
+}
+
 int main(void)
 {
     // testLoadStack();
     // testLoadTile();
     // testBoard();
-    testWalkPath();
+    // testWalkPath();
+    testLoadGoal();
     return 0;
 }

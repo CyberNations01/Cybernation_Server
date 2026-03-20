@@ -22,6 +22,7 @@ class DataLoader {
         static std::vector<DisruptionCard>     loadDisrupt(const std::string & filename);
         static std::vector<Stack>              loadStack(const std::string & filename);
         static std::vector<Tile>               loadTile(const std::string & filename);
+        static std::vector<Goal>               loadGoal(const std::string& filename);
 };
 
 

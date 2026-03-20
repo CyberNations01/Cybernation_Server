@@ -40,25 +40,3 @@ DisruptionEffect DisruptionCard::parseEffectString(const std::string& str) {
     return DisruptionEffect::COHESION; // fallback
 }
 
-
-std::ostream &operator<<(std::ostream &os, DisruptionEffect eff)
-{
-    if (eff == DisruptionEffect::TURN_WASTE )  return  os << "TurnWaste";
-    if (eff == DisruptionEffect::TURN_WILD)   return  os << "TurnWild";
-    if (eff == DisruptionEffect::TURN_DEV_A)   return  os << "TurnDevA";
-    if (eff == DisruptionEffect::TURN_DEV_B)   return os << "TurnDevB";
-    if (eff == DisruptionEffect::COHESION)         return  os << "Co";
-    if (eff == DisruptionEffect::HUMAN_RELATION)         return  os << "HR";
-    if (eff == DisruptionEffect::CYBERNATION)         return  os << "Cy";
-    if (eff == DisruptionEffect::TECHNOLOGY)       return os << "Tech";
-    if (eff == DisruptionEffect::ENVIRONMENT)        return os << "Env";
-    if (eff == DisruptionEffect::RESOURCES)  return os << "Resources";
-    if (eff == DisruptionEffect::TOKEN)      return os << "Token";
-    if (eff == DisruptionEffect::TRADE)      return os << "Trade";
-    if (eff == DisruptionEffect::CAP_ENV)     return os << "CapEnv";
-    if (eff == DisruptionEffect::IGNORE_COHESION_EFFECT) return os << "IgnoreCohesionEffect";
-    if (eff == DisruptionEffect::SWAP_GOAL)   return os << "SwapGoal";
-    if (eff == DisruptionEffect::DRAW_GOAL)   return os << "DrawGoal";
-    if (eff == DisruptionEffect::MOVE_PEOPLE) return os << "MovPpl";
-    return os << "Co"; 
-}

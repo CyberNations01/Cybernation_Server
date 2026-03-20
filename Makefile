@@ -2,7 +2,7 @@ CXX      = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -I./includes
 SRCDIR   = src
 OBJDIR   = obj
-TARGET   = testLoadJson
+TARGET   = out/testLoadJson
  
 SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/core/FeedbackPool.cpp \
