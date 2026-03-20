@@ -51,7 +51,7 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
         } else {
             advanceTurn(state);
         }
-        return ActionResult::success("Player " + std::to_string(action.playerId) + " passed");
+        return ActionResult::success(ActionMessage("status", "Player " + std::to_string(action.playerId) + " passed"));
     }
 
     // 5. Delegate to the appropriate PhaseHandler

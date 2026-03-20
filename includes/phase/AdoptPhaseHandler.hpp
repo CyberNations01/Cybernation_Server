@@ -7,10 +7,7 @@
  * AdoptPhaseHandler
  * 
  * Valid actions during Adopt phase:
- *   - "claim_first_player" : Trade resources to acquire first-player token
- *   - "trade"              : Trade resources between params
- *   - "commit"   : Commit/finalize changes for the round
- *   - "pass"
+ * 
  * 
  * Add more actions as the game design solidifies.
  */
@@ -21,9 +18,8 @@ public:
     GamePhase    getPhase() const override { return GamePhase::ADOPT; }
 
 private:
-    ActionResult handleTrade(const Action& action, GameState& state);
-    ActionResult handleClaimFirstPlayer(const Action& action, GameState& state);
-    ActionResult handleCommit(const Action& action, GameState& state);
+    ActionResult handlePlaceToken(const Action& action, GameState& state);
+
 };
 
 #endif

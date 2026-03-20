@@ -3,7 +3,7 @@
 #include "core/Types.hpp"
 #include "game/GameState.hpp"
 #include "core/ActionResult.hpp"
-#include "phase/EnvisionPhaseHandler.hpp"
+#include "phase/TraversePhaseHandler.hpp"
 #include <unordered_map>
 #include <iostream>
 
@@ -142,14 +142,16 @@ void testBoard()
 void testWalkPath()
 {
     GameState state;
-    EnvisionPhaseHandler handler;
+    TraversePhaseHandler handler;
     Action clientReq = {
         .playerId = 1,
         .type = "walkPath",
         .params = std::unordered_map<std::string, std::string>(),
     };
+
     ActionResult res = handler.handle(clientReq, state);
-    std::cout << res.message << std::endl;
+    std::cout << "Result Type: " << res.message.type << std::endl;
+    std::cout << res.message.payload << std::endl;
 
 }
 

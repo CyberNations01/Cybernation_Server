@@ -1,5 +1,4 @@
 #include "game/GameState.hpp"
-#include "GameState.hpp"
 
 GameState::GameState() {
     // Initialize players

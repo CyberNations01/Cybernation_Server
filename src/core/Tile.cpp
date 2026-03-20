@@ -1,5 +1,4 @@
 #include "core/Tile.hpp"
-#include "Tile.hpp"
 
 const StackType &Tile::getEffectiveType() const
 {

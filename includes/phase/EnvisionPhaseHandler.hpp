@@ -9,8 +9,10 @@
  * 
  * Valid actions during Envision phase:
  * 
- * - Walk People token and claim resource
- * - Draw Disruption and handle the effect
+ *   - "claim_first_player" : Trade resources to acquire first-player token
+ *   - "trade"              : Trade resources between params
+ *   - "commit"   : Commit/finalize changes for the round
+ *   - "pass"
  * 
  * Add more actions here as the game design solidifies.
  */
@@ -21,9 +23,10 @@ public:
     GamePhase    getPhase() const override { return GamePhase::ENVISION; }
 
 private:
-    ActionResult handleWalkPath(GameState &state);
-    ActionResult handleDisruptionEffect();
-
+    ActionResult handleTrade(const Action& action, GameState& state);
+    ActionResult handleClaimFirstPlayer(const Action& action, GameState& state);
+    ActionResult handleCommit(const Action& action, GameState& state);
+    
 };
 
 #endif
