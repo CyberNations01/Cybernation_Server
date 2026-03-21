@@ -1,80 +1,5 @@
 #include "core/DataLoader.hpp"
 
-template<>
-Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
-{
-    Goal card;
-    std::string stackStr[] = {"Wild", "Waste", "DevA", "DevB"};
-
-    card.setId(data["id"].get<int>());
-    card.setName(data.value("name", ""));
-    card.setReverseGoalId(data["reverseGoalId"].get<int>());
-
-    /* Parse start_effect */
-    if (data.contains("start_effect")) {
-        const auto & start_effect = data["start_effect"];
-        std::map<StackType, std::vector<int>> effect;
-
-        for (const auto& e: stackStr) {
-            if (start_effect.contains(e) && start_effect[e].is_array()) {
-                std::vector<int> tiles;
-                for (const auto& t: start_effect[e])
-                    tiles.push_back(t.get<int>());
-                effect[strtoStackType(e)] = tiles;
-            }
-        }
-
-        card.setStackEffect(effect);
-    }
-
-    /* Parse victory_condition */
-    if (data.contains("victory_condition")) {
-        const auto& cond = data["victory_condition"];
-        std::vector<victory_condition> vc_vector;
-        std::string vic_type[] = {"HR", "Co", "Env", "Tech", "Cy"};
-        
-        // Resource condition
-        for (const auto& type : vic_type) {
-            
-            if (cond.contains(type)) {
-                victory_condition vc; 
-                const auto& type_field = cond[type];
-                
-                vc.type = type;
-                vc.num = type_field.value("num", 0);
-                std::string op = type_field.value("compare", "EQ");
-                vc.op = strToComparator(op);
-                vc_vector.push_back(vc);
-            }
-
-        }
-
-        // Tile condition
-        if (cond.contains("stack")) {
-            const auto& stackField = cond["stack"];
-            for (const auto &e: stackStr) {
-                if (stackField.contains(e)) {
-                    victory_condition vc; 
-                    const auto& stk = stackField[e];  
-
-                    vc.type = e;
-                    vc.num = stk.value("num", 0);
-                    
-                    std::string op = stk.value("compare", "EQ");
-                    vc.op = strToComparator(op);
-                    if (stk.contains("position"))
-                        vc.position = 
-                            std::optional<std::string>(stk["position"].get<std::string>());
-                    vc_vector.push_back(vc);
-                }
-                
-            }
-        }
-        card.setCondition(vc_vector);
-    }
-    return card;
-}
-
 template <>
 DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 {
@@ -85,7 +10,6 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     card.setType(strtoDisruptionType(data.value("type", "disrupt")));
     card.setCancellable(data.value("cancel", true));
     card.setHasCondition(data.value("cond", "") != "");
-    card.setOptionalData(data.contains("optional") ? data["optional"] : nlohmann::json::object());
 
     std::vector<int> stackTarget;
 
@@ -300,37 +224,7 @@ std::vector<Tile> DataLoader::loadTile(const std::string &filename)
     return tileSet;
 }
 
-std::vector<Goal> DataLoader::loadGoal(const std::string& filename)
-{
-    std::vector<Goal> goalSet;
-    try {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            std::cerr << "Cannot open: " << filename << std::endl;
-            return goalSet;
-        }
 
-        nlohmann::json jsonData;
-        file >> jsonData;
-
-        if (!jsonData.is_array()) {
-            std::cerr << "JSON must be an array" << std::endl;
-            return goalSet;
-        }
-
-        for (const auto& cardData: jsonData) {
-            try {
-                goalSet.push_back(parseJson<Goal>(cardData));
-            } catch (const std::exception& e) {
-                std::cerr << "Error loading card: " << e.what() << std::endl;
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to load cards: " << e.what() << std::endl;
-    }
-
-    return goalSet;
-}
 
 template <>
 CardManager<DisruptionCard> DataLoader::loadDeck<DisruptionCard>(const std::string& filename)
@@ -348,10 +242,4 @@ template <>
 CardManager<Tile> DataLoader::loadDeck<Tile>(const std::string& filename)
 {
     return CardManager<Tile>(loadTile(filename));
-}
-
-template <>
-CardManager<Goal> DataLoader::loadDeck<Goal>(const std::string& filename)
-{
-    return CardManager<Goal>(loadGoal(filename));
 }

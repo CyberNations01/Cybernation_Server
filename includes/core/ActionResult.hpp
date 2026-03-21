@@ -20,12 +20,12 @@ struct ActionResult {
 
     bool ok() const { return status == ActionStatus::SUCCESS;}
 
-    static ActionResult success() {
-        return {ActionStatus::SUCCESS};
-    }
-
     static ActionResult success(const ActionMessage& msg) {
         return {ActionStatus::SUCCESS, msg}; 
+    }
+
+    static ActionResult success() {
+        return {ActionStatus::SUCCESS};
     }
 
     static ActionResult ignored() {

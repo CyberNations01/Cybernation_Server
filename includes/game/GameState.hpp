@@ -3,6 +3,7 @@
 
 #include "core/Params.hpp"
 #include "core/FeedbackPool.hpp"
+#include "core/FeedbackTokenManager.hpp"
 #include "core/Stack.hpp"
 #include "core/Tile.hpp"
 #include "core/Player.hpp"
@@ -38,6 +39,7 @@ public:
     // --- Resources ---
     Params       params;
     FeedbackPool pool;
+    FeedbackTokenManager tokenManager;
 
     // ---- Card Resource ----
     CardManager<DisruptionCard> disruptionManager;

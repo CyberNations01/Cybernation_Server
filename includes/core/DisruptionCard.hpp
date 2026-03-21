@@ -3,10 +3,12 @@
 
 #include <string>
 #include <vector>
-#include "nlohmann/json.hpp"
 #include "Stack.hpp"
 #include "Params.hpp"
 #include "Types.hpp"
+
+std::ostream& operator<<(std::ostream& os, DisruptionEffect eff);
+
 
 class DisruptionCard {
 private:
@@ -20,7 +22,6 @@ private:
 
     std::vector<StackType>      stackConditions;
     std::vector<CyberParameter> relationConditions;
-    nlohmann::json optionalData;
 
     bool hasCondition;
     bool cancellable;
@@ -29,16 +30,15 @@ public:
     DisruptionCard();
     ~DisruptionCard() = default;
 
-    
-    const std::string&                                   getName()               const { return name; }
-    const std::string&                                   getDescription()        const { return description; }
-    DisruptionType                                       getType()               const { return type; }
+    // Getters
+    const std::string&                                   getName()        const { return name; }
+    const std::string&                                   getDescription() const { return description; }
+    DisruptionType                                       getType()        const { return type; }
     const std::vector<int>&                              getStackTargets()       const { return stackTargets; }
     const std::vector<std::pair<DisruptionEffect, int>>& getEffects()            const { return effects; }
     const std::vector<std::pair<DisruptionEffect, int>>& getCancelCosts()        const { return cancelCosts; }
     const std::vector<StackType>&                        getStackConditions()    const { return stackConditions; }
     const std::vector<CyberParameter>&                   getRelationConditions() const { return relationConditions; }
-    const nlohmann::json&                                getOptionalData() const { return optionalData; }
 
     void setName(const std::string& n)                                          { name = n; }
     void setDescription(const std::string& d)                                   { description = d; }
@@ -50,7 +50,6 @@ public:
     void setRelationConditions(const std::vector<CyberParameter>& r)            { relationConditions = r; }
     void setCancellable(bool c)                                                 { cancellable = c; }
     void setHasCondition(bool c)                                                { hasCondition = c; }
-    void setOptionalData(const nlohmann::json& o)                               { optionalData = o; }
 
 
     bool isCancellable() const { return cancellable; }
