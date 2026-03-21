@@ -510,8 +510,7 @@ ActionResult AdoptPhaseHandler::handleCommit(const Action& action, GameState& st
             ++discarded;
         }
     }
-    state.tokenManager.setBag(nextBag);
-    state.tokenBag = state.tokenManager.getBag();
+    state.setTokenBag(nextBag);
 
     // Adapt step 3 (simplified for current milestone):
     // Only check active Goal completion.

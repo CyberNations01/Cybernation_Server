@@ -54,8 +54,7 @@ void forceAdaptState(GameRoom& room, const std::vector<TokenEffect>& track) {
     state.resetAdaptState();
     state.adaptTrack = track;
     state.adaptCursor = 0;
-    state.tokenBag = track;
-    state.tokenManager.setBag(track);
+    state.setTokenBag(track);
 }
 }
 

@@ -1,5 +1,76 @@
 #include "core/DataLoader.hpp"
 
+template<>
+Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
+{
+    Goal card;
+    std::string stackStr[] = {"Wild", "Waste", "DevA", "DevB"};
+
+    card.setId(data.value("id", 0));
+    card.setName(data.value("name", ""));
+    card.setReverseGoalId(data.value("reverseGoalId", 0));
+
+    // Parse start_effect
+    if (data.contains("start_effect")) {
+        const auto & start_effect = data["start_effect"];
+        std::map<StackType, std::vector<int>> effect;
+
+        for (const auto& e: stackStr) {
+            if (start_effect.contains(e) && start_effect[e].is_array()) {
+                std::vector<int> tiles;
+                for (const auto& t: start_effect[e]) {
+                    if (t.is_number_integer()) tiles.push_back(t.get<int>());
+                }
+                effect[strtoStackType(e)] = tiles;
+            }
+        }
+
+        card.setStackEffect(effect);
+    }
+
+    // Parse victory_condition
+    if (data.contains("victory_condition")) {
+        const auto& cond = data["victory_condition"];
+        std::vector<victory_condition> vc_vector;
+        std::string vic_type[] = {"HR", "Co", "Env", "Tech", "Cy"};
+        
+        // Resource conditions
+        for (const auto& type : vic_type) {
+            if (cond.contains(type) && cond[type].is_object()) {
+                victory_condition vc;
+                const auto& type_field = cond[type];
+
+                vc.type = type;
+                vc.num = type_field.value("num", 0);
+                vc.op = strToComparator(type_field.value("compare", "EQ"));
+                vc_vector.push_back(vc);
+            }
+        }
+
+        // Stack conditions
+        if (cond.contains("stack") && cond["stack"].is_object()) {
+            const auto& stackField = cond["stack"];
+            for (const auto &e: stackStr) {
+                if (stackField.contains(e) && stackField[e].is_object()) {
+                    victory_condition vc;
+                    const auto& stk = stackField[e];
+
+                    vc.type = e;
+                    vc.num = stk.value("num", 0);
+                    vc.op = strToComparator(stk.value("compare", "EQ"));
+                    if (stk.contains("position") && stk["position"].is_string()) {
+                        vc.position = stk["position"].get<std::string>();
+                    }
+                    vc_vector.push_back(vc);
+                }
+            }
+        }
+
+        card.setCondition(vc_vector);
+    }
+    return card;
+}
+
 template <>
 DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 {
@@ -224,6 +295,38 @@ std::vector<Tile> DataLoader::loadTile(const std::string &filename)
     return tileSet;
 }
 
+std::vector<Goal> DataLoader::loadGoal(const std::string& filename)
+{
+    std::vector<Goal> goalSet;
+    try {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Cannot open: " << filename << std::endl;
+            return goalSet;
+        }
+
+        nlohmann::json jsonData;
+        file >> jsonData;
+
+        if (!jsonData.is_array()) {
+            std::cerr << "JSON must be an array" << std::endl;
+            return goalSet;
+        }
+
+        for (const auto& cardData: jsonData) {
+            try {
+                goalSet.push_back(parseJson<Goal>(cardData));
+            } catch (const std::exception& e) {
+                std::cerr << "Error loading goal card: " << e.what() << std::endl;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to load goal cards: " << e.what() << std::endl;
+    }
+
+    return goalSet;
+}
+
 
 
 template <>
@@ -242,4 +345,10 @@ template <>
 CardManager<Tile> DataLoader::loadDeck<Tile>(const std::string& filename)
 {
     return CardManager<Tile>(loadTile(filename));
+}
+
+template <>
+CardManager<Goal> DataLoader::loadDeck<Goal>(const std::string& filename)
+{
+    return CardManager<Goal>(loadGoal(filename));
 }

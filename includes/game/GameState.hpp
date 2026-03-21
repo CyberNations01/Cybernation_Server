@@ -91,6 +91,8 @@ public:
 
     // Re-derive the token bag from current board state
     void rebuildTokenBag();
+    void syncTokenBagFromManager();
+    void setTokenBag(const std::vector<TokenEffect>& nextBag);
 
     // Adapt-phase helpers
     void resetAdaptState();

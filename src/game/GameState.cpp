@@ -121,7 +121,16 @@ int GameState::findFirstPlayer() const
 
 void GameState::rebuildTokenBag() {
     tokenManager.rebuildBagFromBoard(board, pool);
+    syncTokenBagFromManager();
+}
+
+void GameState::syncTokenBagFromManager() {
     tokenBag = tokenManager.getBag();
+}
+
+void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag) {
+    tokenManager.setBag(nextBag);
+    syncTokenBagFromManager();
 }
 
 void GameState::resetAdaptState() {
@@ -136,13 +145,18 @@ void GameState::resetAdaptState() {
 bool GameState::initAdaptTrackIfNeeded() {
     if (!adaptTrack.empty()) return true;
 
-    if (tokenBag.empty()) {
-        rebuildTokenBag();
+    if (tokenManager.getBag().empty()) {
+        if (!tokenBag.empty()) {
+            tokenManager.setBag(tokenBag);
+            syncTokenBagFromManager();
+        } else {
+            rebuildTokenBag();
+        }
     }
-    if (tokenBag.empty()) return false;
-    tokenManager.setBag(tokenBag);
+    if (tokenManager.getBag().empty()) return false;
     if (!tokenManager.drawTrackFromBag(NUM_TILE)) return false;
     adaptTrack = tokenManager.getTrack();
+    syncTokenBagFromManager();
 
     adaptCursor = 0;
     adaptPlacedOn.assign(NUM_TILE, -1);
