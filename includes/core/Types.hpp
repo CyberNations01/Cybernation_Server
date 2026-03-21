@@ -123,4 +123,32 @@ enum class ActionStatus {
     UNKNOWN_ERROR
 };
 
+enum class comparator {
+    GT, GE, EQ, LE, LT, NE
+};
+
+inline comparator strToComparator(const std::string& str)
+{
+    if (str == "GT") return comparator::GT;
+    if (str == "GE") return comparator::GE;
+    if (str == "EQ") return comparator::EQ;
+    if (str == "LE") return comparator::LE;
+    if (str == "LT") return comparator::LT;
+    if (str == "NE") return comparator::NE;
+    return comparator::EQ;
+}
+
+inline std::string comparatorToStr(const comparator& op)
+{
+    switch (op) {
+        case comparator::GT: return "GT";
+        case comparator::GE: return "GE";
+        case comparator::EQ: return "EQ";
+        case comparator::LE: return "LE";
+        case comparator::LT: return "LT";
+        case comparator::NE: return "NE";
+        default:             return "EQ";
+    }
+}
+
 #endif

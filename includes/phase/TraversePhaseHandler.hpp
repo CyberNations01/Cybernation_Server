@@ -7,9 +7,9 @@
  * TraversePhaseHandler
  * 
  * Valid actions during Traverse phase:
- *   - "place_token"        : Place a feedback token on a stack
- *   - "cancel_disruption"  : Pay cost to cancel a disruption card effect
- *   - "pass"
+ * 
+ * - `walkPath`: Walk People token and claim resource
+ * - `Solve Disruption`: Draw Disruption and handle the effect
  */
 
 class TraversePhaseHandler : public PhaseHandler {
@@ -18,8 +18,15 @@ public:
     GamePhase    getPhase() const override { return GamePhase::TRAVERSE; }
 
 private:
-    ActionResult handlePlaceToken(const Action& action, GameState& state);
+    nlohmann::json 
+    restoJson(const int& tile, const int& side, 
+                const std::vector<std::string> & resources, 
+                const std::string& layer);
+
     ActionResult handleCancelDisruption(const Action& action, GameState& state);
+    ActionResult handleWalkPath(GameState &state);
+    ActionResult handleDisruptionEffect();
+
 };
 
 #endif

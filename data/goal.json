@@ -58,7 +58,7 @@
                 }
             },
             "Cy" : {
-                "Compare": "GE",
+                "compare": "GE",
                 "num": 7
             }
         },
