@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "nlohmann/json.hpp"
 #include "Stack.hpp"
 #include "Params.hpp"
 #include "Types.hpp"
@@ -22,6 +23,7 @@ private:
 
     std::vector<StackType>      stackConditions;
     std::vector<CyberParameter> relationConditions;
+    nlohmann::json optionalData;
 
     bool hasCondition;
     bool cancellable;
@@ -39,6 +41,7 @@ public:
     const std::vector<std::pair<DisruptionEffect, int>>& getCancelCosts()        const { return cancelCosts; }
     const std::vector<StackType>&                        getStackConditions()    const { return stackConditions; }
     const std::vector<CyberParameter>&                   getRelationConditions() const { return relationConditions; }
+    const nlohmann::json&                                getOptionalData() const { return optionalData; }
 
     void setName(const std::string& n)                                          { name = n; }
     void setDescription(const std::string& d)                                   { description = d; }
@@ -50,6 +53,7 @@ public:
     void setRelationConditions(const std::vector<CyberParameter>& r)            { relationConditions = r; }
     void setCancellable(bool c)                                                 { cancellable = c; }
     void setHasCondition(bool c)                                                { hasCondition = c; }
+    void setOptionalData(const nlohmann::json& o)                               { optionalData = o; }
 
 
     bool isCancellable() const { return cancellable; }

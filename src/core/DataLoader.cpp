@@ -10,6 +10,7 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     card.setType(strtoDisruptionType(data.value("type", "disrupt")));
     card.setCancellable(data.value("cancel", true));
     card.setHasCondition(data.value("cond", "") != "");
+    card.setOptionalData(data.contains("optional") ? data["optional"] : nlohmann::json::object());
 
     std::vector<int> stackTarget;
 

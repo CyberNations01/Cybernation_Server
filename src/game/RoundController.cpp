@@ -43,6 +43,10 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
 
     // 4. Handle "pass" 
     if (action.isPass()) {
+        if (state.currentPhase == GamePhase::ADOPT) {
+            return {ActionStatus::INVALID_ACTION, "Pass is not used in Adapt; finish with commit"};
+        }
+
         passedPlayers.insert(action.playerId);
 
         // Check if phase is now complete
@@ -66,7 +70,21 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
     //    (the current player can act again on their NEXT turn in the cycle,
     //     unless they pass)
     if (result.ok()) {
-        advanceTurn(state);
+        // Handler may decide game has ended during action resolution.
+        if (state.gameOver) {
+            return result;
+        }
+
+        if (state.currentPhase == GamePhase::ADOPT) {
+            // Adapt advances only after explicit commit finalization.
+            if (action.type == "commit") {
+                advancePhase(state);
+            } else {
+                advanceTurn(state);
+            }
+        } else {
+            advanceTurn(state);
+        }
     }
 
     return result;
@@ -147,6 +165,13 @@ void RoundController::resetPhase(GameState& state) {
     passedPlayers.clear();
     buildTurnOrder(state.firstPlayerId);
     state.currentPlayerId = getCurrentPlayerId();
+
+    if (state.currentPhase == GamePhase::ADOPT) {
+        state.resetAdaptState();
+        state.initAdaptTrackIfNeeded();
+    } else {
+        state.resetAdaptState();
+    }
 }
 
 // ─────────────────────────────────────────────

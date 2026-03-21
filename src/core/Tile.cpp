@@ -1,5 +1,4 @@
 #include "core/Tile.hpp"
-#include "Tile.hpp"
 
 const StackType &Tile::getEffectiveType() const
 {
@@ -17,7 +16,7 @@ const int &Tile::getNeighbourSide(int side) const
     return neighbours[side].first;
 }
 
-const std::vector<std::string> &Tile::getSideResources(int side) const
+std::vector<std::string> Tile::getSideResources(int side) const
 {
     std::vector<std::string> all_resources = base.getSides()[side];
     if (hasOverlay()) {
