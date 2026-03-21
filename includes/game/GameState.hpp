@@ -3,7 +3,6 @@
 
 #include "core/Params.hpp"
 #include "core/FeedbackPool.hpp"
-#include "core/FeedbackTokenManager.hpp"
 #include "core/Stack.hpp"
 #include "core/Tile.hpp"
 #include "core/Player.hpp"
@@ -39,19 +38,11 @@ public:
     // --- Resources ---
     Params       params;
     FeedbackPool pool;
-    FeedbackTokenManager tokenManager;
 
     // ---- Card Resource ----
     CardManager<DisruptionCard> disruptionManager;
-    std::vector<DisruptionCard> disruptionCatalog;
-    std::vector<nlohmann::json> goalDeck;
-    nlohmann::json              activeGoal;
     CardManager<Stack> stackManager;
     CardManager<Tile> tileManager;
-    std::vector<Stack> devATemplates;
-    std::vector<Stack> devBTemplates;
-    int devATemplateIndex = 0;
-    int devBTemplateIndex = 0;
 
     // --- Players ---
     Player players[NUM_PLAYERS];
@@ -64,13 +55,6 @@ public:
     int       firstPlayerId     = 0;  // Player who goes first this round
     int       currentPlayerId   = 0;  // Whose turn it is right now
     bool      gameOver          = false;
-
-    // --- Adapt phase runtime state ---
-    std::vector<TokenEffect> adaptTrack;       // 11 feedback tokens in order
-    int                      adaptCursor = 0;  // next token index to resolve
-    std::vector<int>         adaptPlacedOn;    // token index -> tile position (-1 if unresolved)
-    std::vector<bool>        adaptCancelled;   // token index -> cancelled?
-    std::vector<bool>        adaptTileOccupied;// tile position -> already has a feedback token
 
     // --- Constructor ---
     GameState();
@@ -91,18 +75,6 @@ public:
 
     // Re-derive the token bag from current board state
     void rebuildTokenBag();
-    void syncTokenBagFromManager();
-    void setTokenBag(const std::vector<TokenEffect>& nextBag);
-
-    // Adapt-phase helpers
-    void resetAdaptState();
-    bool initAdaptTrackIfNeeded();
-    bool isAdaptComplete() const;
-    bool isAdaptTileAvailable(int tilePos) const;
-    Stack nextDevelopmentStack(StackType targetType);
-    int countStacksByType(StackType type) const;
-    const DisruptionCard* findDisruptionCardByName(const std::string& name) const;
-    bool isActiveGoalMet() const;
 };
 
 #endif

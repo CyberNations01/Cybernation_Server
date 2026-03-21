@@ -25,7 +25,6 @@ class GameRoom {
 private:
     GameState       state;
     RoundController controller;
-    nlohmann::json  buildNextPrompt() const;
 
 public:
     GameRoom();

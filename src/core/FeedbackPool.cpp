@@ -2,17 +2,14 @@
 
 FeedbackPool::FeedbackPool(int each)
     : turnWildTokens(each), loseCohesionTokens(each),
-      turnWasteTokens(each), solveDisruptTokens(each),
-      developTokens(each), transformTokens(each) {}
+      turnWasteTokens(each), solveDisruptTokens(each) {}
 
-FeedbackPool::FeedbackPool(int wild, int loseCoh, int waste, int solve, int develop, int transform)
+FeedbackPool::FeedbackPool(int wild, int loseCoh, int waste, int solve)
     : turnWildTokens(wild), loseCohesionTokens(loseCoh),
-      turnWasteTokens(waste), solveDisruptTokens(solve),
-      developTokens(develop), transformTokens(transform) {}
+      turnWasteTokens(waste), solveDisruptTokens(solve) {}
 
 int FeedbackPool::getPoolSize() const {
-    return turnWildTokens + loseCohesionTokens + turnWasteTokens +
-           solveDisruptTokens + developTokens + transformTokens;
+    return turnWildTokens + loseCohesionTokens + turnWasteTokens + solveDisruptTokens;
 }
 
 int FeedbackPool::getTotalCapacity() const {
@@ -34,12 +31,6 @@ bool FeedbackPool::draw(TokenEffect token) {
         case TokenEffect::SOLVE_DISRUPTION:
             if (solveDisruptTokens > 0) { --solveDisruptTokens; return true; }
             break;
-        case TokenEffect::DEVELOP_STACK:
-            if (developTokens > 0) { --developTokens; return true; }
-            break;
-        case TokenEffect::TRANSFORM_STACK:
-            if (transformTokens > 0) { --transformTokens; return true; }
-            break;
         default: break;
     }
     return false;
@@ -51,8 +42,6 @@ void FeedbackPool::putBack(TokenEffect token) {
         case TokenEffect::LOSE_COHESION:   ++loseCohesionTokens; break;
         case TokenEffect::TURN_WASTE:      ++turnWasteTokens; break;
         case TokenEffect::SOLVE_DISRUPTION: ++solveDisruptTokens; break;
-        case TokenEffect::DEVELOP_STACK:   ++developTokens; break;
-        case TokenEffect::TRANSFORM_STACK: ++transformTokens; break;
         default: break;
     }
 }

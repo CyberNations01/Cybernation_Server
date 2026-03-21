@@ -16,7 +16,7 @@ const int &Tile::getNeighbourSide(int side) const
     return neighbours[side].first;
 }
 
-std::vector<std::string> Tile::getSideResources(int side) const
+const std::vector<std::string> &Tile::getSideResources(int side) const
 {
     std::vector<std::string> all_resources = base.getSides()[side];
     if (hasOverlay()) {

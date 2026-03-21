@@ -4,13 +4,23 @@
 #include <string>
 #include <vector>
 #include <map>
-#include "core/Types.hpp"
+#include "Types.hpp"
 #include <optional>
 
+/*
+ * victory_conditiion 
+ * 
+ * Single victory condition to achieve
+ * 
+ * @type: Target Resoruce i.e. Wild, DevA, Cy, Co
+ * @op: Operend
+ * @num: Number of required type
+ * @position: Specific resource requirement, optional 
+*/
 struct victory_condition {
     std::string type;
-    comparator op = comparator::EQ;
-    int num = 0;
+    comparator op;
+    int num;
     std::optional<std::string> position;
 };
 
@@ -23,19 +33,26 @@ class Goal {
         std::map<StackType, std::vector<int>> stackEffect;
 
     public:
-        Goal() : id(0), reverseGoalId(0), name("") {}
+        const int& getId() const            {return id;};
+        const int& getReverseGoalId() const {return reverseGoalId;};
+        const std::string& getName() const  {return name;};
 
-        const int& getId() const;
-        const int& getReverseGoalId() const;
-        const std::string& getName() const;
-        const std::vector<victory_condition>& getConditions() const;
-        const std::map<StackType, std::vector<int>>& getStackEffect() const;
+        const std::vector<victory_condition>& getConditions() const
+        {return conditions;};
+        const std::map<StackType, std::vector<int>>& getStackEffect() const
+        {return stackEffect;};
 
-        void setId(int value);
-        void setReverseGoalId(int value);
-        void setName(const std::string& value);
-        void setCondition(const std::vector<victory_condition>& value);
-        void setStackEffect(const std::map<StackType, std::vector<int>>& value);
+
+        void setId(const int& id)                      {this->id = id;};
+        void setReverseGoalId(const int& id)           {this->reverseGoalId = id;};
+        void setName(const std::string& name)          {this->name = name;};
+        void addCondition(const victory_condition& vc) {conditions.push_back(vc);};
+
+        void setStackEffect(const std::map<StackType, std::vector<int>>& stackEffect)
+        {this->stackEffect = stackEffect;}
+        void setCondition(std::vector<victory_condition> vc)
+        {this->conditions = vc;}
+
 };
 
 #endif

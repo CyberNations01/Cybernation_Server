@@ -8,13 +8,10 @@ private:
     int loseCohesionTokens;
     int turnWasteTokens;
     int solveDisruptTokens;
-    int developTokens;
-    int transformTokens;
 
 public:
-    // 6 token types total; default 20 each -> 120 tokens.
-    FeedbackPool(int each = 20);
-    FeedbackPool(int wild, int loseCoh, int waste, int solve, int develop, int transform);
+    FeedbackPool(int each = 10);
+    FeedbackPool(int wild, int loseCoh, int waste, int solve);
     ~FeedbackPool() = default;
 
     // Getters
@@ -22,8 +19,6 @@ public:
     int getLoseCohesion()   const { return loseCohesionTokens; }
     int getTurnWaste()      const { return turnWasteTokens; }
     int getSolveDisrupt()   const { return solveDisruptTokens; }
-    int getDevelop()        const { return developTokens; }
-    int getTransform()      const { return transformTokens; }
     int getPoolSize()       const;
     int getTotalCapacity()  const;
 
