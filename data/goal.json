@@ -1,6 +1,6 @@
 [
     {
-        "id": 1,        
+        "id": 0,        
         "name" : "Restore and Rewild",
         "victory_condition": {
             "stack": 
@@ -20,10 +20,10 @@
             "DevB":  [0],
             "Waste": [2]
         },
-        "reverseGoalId": 2
+        "reverseGoalId": 1
     },
     {
-        "id": 2,        
+        "id": 1,        
         "name" : "Dominate the Land",
         "victory_condition": {
             "stack" : {
@@ -41,10 +41,10 @@
             "DevB":  [0],
             "Wild":  [2,7]
         },
-        "reverseGoalId": 1
+        "reverseGoalId": 0
     },
     {
-        "id": 3,        
+        "id": 2,        
         "name" : "Prepare for the Worst",
         "victory_condition": {
             "stack" : {
@@ -66,10 +66,10 @@
             "DevA":  [8],
             "Waste": [0,3]
         },
-        "reverseGoalId": 4
+        "reverseGoalId": 3
     },
     {
-        "id": 4,        
+        "id": 3,        
         "name" : "Each to their Own",
         "victory_condition": {
             "stack" : {
@@ -91,10 +91,10 @@
             "DevB":  [8],
             "Waste": [0,3]
         },
-        "reverseGoalId": 3
+        "reverseGoalId": 2
     },
     {
-        "id": 5,        
+        "id": 4,        
         "name" : "Reconnect",
         "victory_condition": {
             "stack" : {
@@ -119,11 +119,11 @@
         "start_effect": {
             "Waste": [0,7,8,9,10]
         },
-        "reverseGoalId": 6
+        "reverseGoalId": 5
     },
 
     {
-        "id": 6,        
+        "id": 5,        
         "name" : "Ransack",
         "victory_condition": {
             "stack" : {
@@ -150,10 +150,10 @@
             "DevB": [7,10],
             "DevA": [8,9]
         },
-        "reverseGoalId": 5
+        "reverseGoalId": 4
     },
     {
-        "id": 7,        
+        "id": 6,        
         "name" : "Equity",
         "victory_condition": {
             "stack" : {
@@ -177,11 +177,11 @@
             "Waste": [2,5],
             "Wild": [9]
         },
-        "reverseGoalId": 8
+        "reverseGoalId": 7
     },
 
     {
-        "id": 8,        
+        "id": 7,        
         "name" : "Inequity",
         "victory_condition": {
             "stack" : {
@@ -205,10 +205,10 @@
             "Waste": [2,5],
             "Wild": [9]
         },
-        "reverseGoalId": 7
+        "reverseGoalId": 6
     },
     {
-        "id": 9,        
+        "id": 8,        
         "name" : "Tomorrow through Tech",
         "victory_condition": {
             "stack" : {
@@ -227,11 +227,11 @@
             "Wild": [2,4],
             "DevA": [0]
         },
-        "reverseGoalId": 10
+        "reverseGoalId": 9
     },
 
     {
-        "id": 10,        
+        "id": 9,        
         "name" : "Back to Nature",
         "victory_condition": {
             "stack" : {
@@ -254,6 +254,6 @@
             "DevA":  [2,4],
             "Waste": [0]
         },
-        "reverseGoalId": 9
+        "reverseGoalId": 8
     }
 ]

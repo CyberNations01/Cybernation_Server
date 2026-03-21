@@ -4,6 +4,7 @@
 #include "game/GameState.hpp"
 #include "core/ActionResult.hpp"
 #include "phase/TraversePhaseHandler.hpp"
+#include "game/GameUtility.hpp"
 #include <unordered_map>
 #include <iostream>
 
@@ -152,9 +153,7 @@ void testWalkPath()
     ActionResult res = handler.handle(clientReq, state);
     std::cout << "Result Type: " << res.message.type << std::endl;
     std::cout << res.message.payload << std::endl;
-
 }
-
 
 void testLoadGoal()
 {
@@ -189,12 +188,107 @@ void testLoadGoal()
     }
 }
 
+void testDraw10AndResolve() {
+    GameState state;
+ 
+    std::cout << "=== Initial State ===" << std::endl;
+    std::cout << "Cohesion: " << state.params.getCohesion() << std::endl;
+    std::cout << "Cybernation: " << state.params.getCybernationLevel() << std::endl;
+    std::cout << "HR: " << state.params.getHumanRelation() << std::endl;
+    std::cout << "Tech: " << state.params.getTechnology() << std::endl;
+    std::cout << "Env: " << state.params.getEnvironment() << std::endl;
+    std::cout << std::endl;
+    std::cout << "Env: " << state.params.getEnvironment() << std::endl;
+    std::cout << "Board -> ";
+    for (int t = 0; t < GameState::NUM_TILE; t++) {
+        StackType type = state.board[t].getEffectiveType();
+        switch (type) {
+            case StackType::WILD:  std::cout << "W "; break;
+            case StackType::WASTE: std::cout << "X "; break;
+            case StackType::DEV_A: std::cout << "A "; break;
+            case StackType::DEV_B: std::cout << "B "; break;
+            default:               std::cout << "? "; break;
+        }
+    }
+    std::cout << std::endl;
+
+    std::cout << std::endl;
+
+
+ 
+    for (int i = 0; i < 10; i++) {
+        std::cout << "=== Round " << (i + 1) << " ===" << std::endl;
+ 
+        // Draw
+        ActionResult drawResult = GameUtility::drawDisruption(state);
+        if (!drawResult.ok()) {
+            std::cout << "  Draw failed: " << drawResult.message.type << drawResult.message.payload << std::endl;
+            continue;
+        }
+ 
+        const DisruptionCard& card = state.activeDisruption.value();
+        std::cout << "  Card: " << card.getName() << std::endl;
+        std::cout << "  Type: " << (card.isDisrupt() ? "disrupt" : "boost") << std::endl;
+        std::cout << "  Description: " << card.getDescription() << std::endl;
+ 
+        // Build action for resolve
+        Action action;
+        action.playerId = 0;
+        action.type = "resolve_disruption";
+ 
+        // For OR cards, pick the first effect
+        if (card.getEffectCond() == EffectCondition::OR) {
+            action.params["effectIndex"] = "0";
+        }
+ 
+        // For RESOURCES cards, distribute evenly across HR/Tech/Env
+        for (const auto& [effect, value] : card.getEffects()) {
+            if (effect == DisruptionEffect::RESOURCES) {
+                int perParam = value / 3;
+                int remainder = value % 3;
+                action.params["HR"] = std::to_string(perParam + remainder);
+                action.params["Tech"] = std::to_string(perParam);
+                action.params["Env"] = std::to_string(perParam);
+            }
+        }
+ 
+        // Resolve
+        ActionResult resolveResult = GameUtility::applyDisruptionEffect(state, action);
+        std::cout << "  Result: " << (resolveResult.ok() ? "SUCCESS" : "FAILED") << std::endl;
+ 
+        // Clear active disruption for next draw
+        state.activeDisruption = std::nullopt;
+ 
+        // Print state after
+        std::cout << "  State -> Co:" << state.params.getCohesion()
+                  << " Cy:" << state.params.getCybernationLevel()
+                  << " HR:" << state.params.getHumanRelation()
+                  << " Tech:" << state.params.getTechnology()
+                  << " Env:" << state.params.getEnvironment() << std::endl;
+ 
+        // Print board types
+        std::cout << "  Board -> ";
+        for (int t = 0; t < GameState::NUM_TILE; t++) {
+            StackType type = state.board[t].getEffectiveType();
+            switch (type) {
+                case StackType::WILD:  std::cout << "W "; break;
+                case StackType::WASTE: std::cout << "X "; break;
+                case StackType::DEV_A: std::cout << "A "; break;
+                case StackType::DEV_B: std::cout << "B "; break;
+                default:               std::cout << "? "; break;
+            }
+        }
+        std::cout << std::endl << std::endl;
+    }
+}
+
 int main(void)
 {
     // testLoadStack();
     // testLoadTile();
     // testBoard();
     // testWalkPath();
-    testLoadGoal();
+    // testLoadGoal();
+    testDraw10AndResolve();
     return 0;
 }

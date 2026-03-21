@@ -2,6 +2,7 @@
 #define TRAVERSE_PHASE_HANDLER_HPP
 
 #include "game/PhaseHandler.hpp"
+#include "game/GameUtility.hpp"
 
 /*
  * TraversePhaseHandler
@@ -18,14 +19,12 @@ public:
     GamePhase    getPhase() const override { return GamePhase::TRAVERSE; }
 
 private:
-    nlohmann::json 
-    restoJson(const int& tile, const int& side, 
-                const std::vector<std::string> & resources, 
-                const std::string& layer);
 
-    ActionResult handleCancelDisruption(const Action& action, GameState& state);
     ActionResult handleWalkPath(GameState &state);
-    ActionResult handleDisruptionEffect();
+
+    ActionResult handleDrawDisruption(GameState& state);
+    ActionResult handleResolveDisruption(const Action& action, GameState& state);
+    ActionResult handleCancelDisruption(GameState& state);
 
 };
 

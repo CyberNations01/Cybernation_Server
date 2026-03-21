@@ -3,60 +3,96 @@
 
 #include <string>
 #include <vector>
-#include "Stack.hpp"
-#include "Params.hpp"
+#include <map>
+#include <optional>
 #include "Types.hpp"
+
+enum class ConditionType { NONE, STACK, RESOURCE };
+
+// Stack condition: check tile effective type
+struct StackCondition {
+    std::vector<StackType> stackTypes;  // e.g. {DevA, DevB}
+};
+
+// Resource condition: compare two params
+struct ResourceCondition {
+    CyberParameter lhs;
+    CyberParameter rhs;
+    comparator compare;  
+};
 
 class DisruptionCard {
 private:
-    std::string     name;
-    std::string     description;
-    DisruptionType  type;
+    std::string name;
+    std::string description;
+    DisruptionType type;             
 
-    std::vector<int>                              stackTargets;
-    std::vector<std::pair<DisruptionEffect, int>> effects;
-    std::vector<std::pair<DisruptionEffect, int>> cancelCosts;
+    // Condition
+    ConditionType conditionType;      // NONE, STACK, RESOURCE
+    std::optional<StackCondition> stackCondition;
+    std::optional<ResourceCondition> resourceCondition;
 
-    std::vector<StackType>      stackConditions;
-    std::vector<CyberParameter> relationConditions;
+    // Targets & effects
+    std::vector<int> stackTargets;
+    std::vector<std::pair<DisruptionEffect, int>> effects;   // ordered
+    std::vector<std::pair<DisruptionEffect, int>> costs;     // ordered
+    EffectCondition effectCond;
 
-    bool hasCondition;
+    // Optional bonus action
+    std::vector<std::pair<DisruptionEffect, int>> optionalCosts;
+    std::vector<std::pair<DisruptionEffect, int>> optionalGains;
+
+    VictoryImpact victoryImpact;
     bool cancellable;
 
 public:
-    DisruptionCard();
+    DisruptionCard() : type(DisruptionType::DISRUPT),
+                       conditionType(ConditionType::NONE),
+                       effectCond(EffectCondition::NONE),
+                       victoryImpact(VictoryImpact::NONE),
+                       cancellable(false) {}
     ~DisruptionCard() = default;
 
-    
-    const std::string&                                   getName()               const { return name; }
-    const std::string&                                   getDescription()        const { return description; }
-    DisruptionType                                       getType()               const { return type; }
-    const std::vector<int>&                              getStackTargets()       const { return stackTargets; }
-    const std::vector<std::pair<DisruptionEffect, int>>& getEffects()            const { return effects; }
-    const std::vector<std::pair<DisruptionEffect, int>>& getCancelCosts()        const { return cancelCosts; }
-    const std::vector<StackType>&                        getStackConditions()    const { return stackConditions; }
-    const std::vector<CyberParameter>&                   getRelationConditions() const { return relationConditions; }
+    // Getters
+    const std::string&      getName()          const { return name; }
+    const std::string&      getDescription()   const { return description; }
+    DisruptionType          getType()          const { return type; }
+    ConditionType           getConditionType() const { return conditionType; }
+    EffectCondition         getEffectCond()    const { return effectCond; }
+    VictoryImpact           getVictoryImpact() const { return victoryImpact; }
+    bool                    isCancellable()    const { return cancellable; }
+    bool                    hasOptional()      const { return !optionalCosts.empty(); }
 
-    void setName(const std::string& n)                                          { name = n; }
-    void setDescription(const std::string& d)                                   { description = d; }
-    void setType(DisruptionType t)                                              { type = t; }
-    void setStackTargets(const std::vector<int>& t)                             { stackTargets = t; }
-    void setEffects(const std::vector<std::pair<DisruptionEffect, int>>& e)     { effects = e; }
-    void setCancelCosts(const std::vector<std::pair<DisruptionEffect, int>>& c) { cancelCosts = c; }
-    void setStackConditions(const std::vector<StackType>& s)                    { stackConditions = s; }
-    void setRelationConditions(const std::vector<CyberParameter>& r)            { relationConditions = r; }
-    void setCancellable(bool c)                                                 { cancellable = c; }
-    void setHasCondition(bool c)                                                { hasCondition = c; }
+    const std::vector<int>&                              getStackTargets()  const { return stackTargets; }
+    const std::vector<std::pair<DisruptionEffect, int>>& getEffects()       const { return effects; }
+    const std::vector<std::pair<DisruptionEffect, int>>& getCosts()         const { return costs; }
+    const std::vector<std::pair<DisruptionEffect, int>>& getOptionalCosts() const { return optionalCosts; }
+    const std::vector<std::pair<DisruptionEffect, int>>& getOptionalGains() const { return optionalGains; }
 
+    const std::optional<StackCondition>&    getStackCondition()    const { return stackCondition; }
+    const std::optional<ResourceCondition>& getResourceCondition() const { return resourceCondition; }
 
-    bool isCancellable() const { return cancellable; }
+    // Setters
+    void setName(const std::string& n)              { name = n; }
+    void setDescription(const std::string& d)       { description = d; }
+    void setType(DisruptionType t)                  { type = t; }
+    void setConditionType(ConditionType ct)          { conditionType = ct; }
+    void setEffectCond(EffectCondition ec)           { effectCond = ec; }
+    void setVictoryImpact(VictoryImpact vi)          { victoryImpact = vi; }
+    void setCancellable(bool c)                      { cancellable = c; }
+    void setStackTargets(const std::vector<int>& t)  { stackTargets = t; }
+
+    void setEffects(const std::vector<std::pair<DisruptionEffect, int>>& e)       { effects = e; }
+    void setCosts(const std::vector<std::pair<DisruptionEffect, int>>& c)         { costs = c; }
+    void setOptionalCosts(const std::vector<std::pair<DisruptionEffect, int>>& c) { optionalCosts = c; }
+    void setOptionalGains(const std::vector<std::pair<DisruptionEffect, int>>& g) { optionalGains = g; }
+    void setStackCondition(const StackCondition& sc)       { stackCondition = sc; }
+    void setResourceCondition(const ResourceCondition& rc) { resourceCondition = rc; }
 
     // Helpers
     bool hasTileChangeEffect() const;
-    
-    // Parsing
-    static DisruptionEffect parseEffectString(const std::string& str);
+    bool isDisrupt() const { return type == DisruptionType::DISRUPT; }
+    bool isBoost()   const { return type == DisruptionType::BOOST; }
 };
-
 
 #endif

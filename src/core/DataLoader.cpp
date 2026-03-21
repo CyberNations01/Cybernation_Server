@@ -35,18 +35,15 @@ Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
         
         // Resource condition
         for (const auto& type : vic_type) {
-            
             if (cond.contains(type)) {
                 victory_condition vc; 
                 const auto& type_field = cond[type];
                 
                 vc.type = type;
                 vc.num = type_field.value("num", 0);
-                std::string op = type_field.value("compare", "EQ");
-                vc.op = strToComparator(op);
+                vc.op = strToComparator(type_field.value("compare", "EQ"));
                 vc_vector.push_back(vc);
             }
-
         }
 
         // Tile condition
@@ -80,58 +77,89 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 {
     DisruptionCard card;
 
-    card.setName(data.value("name", ""));
-    card.setDescription(data.value("description", ""));
-    card.setType(strtoDisruptionType(data.value("type", "disrupt")));
-    card.setCancellable(data.value("cancel", true));
-    card.setHasCondition(data.value("cond", "") != "");
+    card.setName(data.at("name").get<std::string>());
+    card.setDescription(data.at("description").get<std::string>());
 
-    std::vector<int> stackTarget;
+    // Type: "disrupt" or "boost"
+    std::string typeStr = data.at("type").get<std::string>();
+    card.setType(typeStr == "boost" ? DisruptionType::BOOST : DisruptionType::DISRUPT);
 
-    if (data.contains("stackTarget") && data["stackTarget"].is_array()) {
-        for (const auto& t : data["stackTarget"])
-            if (t.is_number()) stackTarget.push_back(t.get<int>());
+    // ConditionType + condition parsing
+    std::string condTypeStr = data.at("conditionType").get<std::string>();
+    if (condTypeStr == "stack") {
+        card.setConditionType(ConditionType::STACK);
+        StackCondition sc;
+        for (const auto& st : data.at("condition").at("stackType")) {
+            std::string s = st.get<std::string>();
+            if      (s == "Wild")  sc.stackTypes.push_back(StackType::WILD);
+            else if (s == "Waste") sc.stackTypes.push_back(StackType::WASTE);
+            else if (s == "DevA")  sc.stackTypes.push_back(StackType::DEV_A);
+            else if (s == "DevB")  sc.stackTypes.push_back(StackType::DEV_B);
+        }
+        card.setStackCondition(sc);
+    } else if (condTypeStr == "resource") {
+        card.setConditionType(ConditionType::RESOURCE);
+        ResourceCondition rc;
+        rc.lhs     = strToCyberParameter(data.at("condition").at("lhs").get<std::string>());
+        rc.rhs     = strToCyberParameter(data.at("condition").at("rhs").get<std::string>());
+        std::string cmp = data.at("condition").at("compare").get<std::string>();
+        if      (cmp == "GT") rc.compare = comparator::GT;
+        else if (cmp == "GE") rc.compare = comparator::GE;
+        else if (cmp == "EQ") rc.compare = comparator::EQ;
+        else if (cmp == "LT") rc.compare = comparator::LT;
+        else if (cmp == "LE") rc.compare = comparator::LE;
+        else if (cmp == "NE") rc.compare = comparator::NE;
+        card.setResourceCondition(rc);
+    } else {
+        card.setConditionType(ConditionType::NONE);
     }
-    card.setStackTargets(stackTarget);
 
-    // Parse effects
-    std::vector<std::pair<DisruptionEffect, int>> effects;
+    // Stack targets
+    std::vector<int> targets;
+    for (const auto& t : data.at("stackTarget")) {
+        targets.push_back(t.get<int>());
+    }
+    card.setStackTargets(targets);
 
-    if (data.contains("effect") && data["effect"].is_array()) {
-        for (const auto& e : data["effect"]) {
-            if (e.is_string()) {
-                std::string s = e.get<std::string>();
-                auto colon = s.find(':');
-                if (colon != std::string::npos) {
-                    std::string name = s.substr(0, colon);
-                    int val = std::stoi(s.substr(colon + 1));
-                    effects.push_back({strtoDisruptionEffect(s), val});
-                } else
-                    effects.push_back({strtoDisruptionEffect(s), 0});
+    // Helper lambda: parse array of single-key objects into vector<pair<DisruptionEffect, int>>
+    auto parseEffectArray = [](const nlohmann::json& arr) {
+        std::vector<std::pair<DisruptionEffect, int>> result;
+        for (const auto& obj : arr) {
+            for (const auto& [key, val] : obj.items()) {
+                result.emplace_back(strtoDisruptionEffect(key), val.get<int>());
             }
         }
+        return result;
+    };
+
+    // Effects
+    card.setEffects(parseEffectArray(data.at("effect")));
+
+    // Costs
+    card.setCosts(parseEffectArray(data.at("cost")));
+
+    // Effect condition
+    std::string ecStr = data.at("effectCond").get<std::string>();
+    if      (ecStr == "and") card.setEffectCond(EffectCondition::AND);
+    else if (ecStr == "or")  card.setEffectCond(EffectCondition::OR);
+    else                     card.setEffectCond(EffectCondition::NONE);
+
+    // Optional
+    const auto& opt = data.at("optional");
+    if (opt.is_object() && opt.contains("cost")) {
+        card.setOptionalCosts(parseEffectArray(opt.at("cost")));
+        card.setOptionalGains(parseEffectArray(opt.at("gain")));
     }
-    card.setEffects(effects);
 
-    // Parse cancel costs
-    std::vector<std::pair<DisruptionEffect, int>> cancelCost;
+    // Victory impact
+    std::string viStr = data.at("victoryImpact").get<std::string>();
+    if      (viStr == "Regulation")    card.setVictoryImpact(VictoryImpact::REGULATION);
+    else if (viStr == "Amplification") card.setVictoryImpact(VictoryImpact::AMPLIFICATION);
+    else                               card.setVictoryImpact(VictoryImpact::NONE);
 
-    if (data.contains("cost") && data["cost"].is_array()) {
-        for (const auto& c : data["cost"]) {
-            if (c.is_string()) {
-                std::string s = c.get<std::string>();
-                auto colon = s.find(':');
-                if (colon != std::string::npos) {
-                    std::string name = s.substr(0, colon);
-                    int val = std::stoi(s.substr(colon + 1));
-                    cancelCost.push_back({strtoDisruptionEffect(name), val});
-                } else
-                    cancelCost.push_back({strtoDisruptionEffect(s), 0});
-            }
-        }
-    }
+    // Cancellable
+    card.setCancellable(data.at("cancel").get<bool>());
 
-    card.setCancelCosts(cancelCost);
     return card;
 }
 

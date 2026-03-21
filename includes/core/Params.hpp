@@ -1,13 +1,6 @@
 #ifndef PARAMS_HPP
 #define PARAMS_HPP
-
-enum class CyberParameter {
-    COHESION,
-    CYBERNATION_LEVEL,
-    HUMAN_RELATION,
-    ENVIRONMENT,
-    TECHNOLOGY
-};
+#include "Types.hpp"
 
 class Params {
 private:
@@ -23,21 +16,26 @@ public:
     ~Params() = default;
 
     // Getters
-    int getCohesion()          const { return cohesion; }
-    int getCybernationLevel()  const { return cybernationLevel; }
-    int getHumanRelation()     const { return humanRelation; }
-    int getEnvironment()       const { return environment; }
-    int getTechnology()        const { return technology; }
+    const int& getCohesion()          const { return cohesion; }
+    const int& getCybernationLevel()  const { return cybernationLevel; }
+    const int& getHumanRelation()     const { return humanRelation; }
+    const int& getEnvironment()       const { return environment; }
+    const int& getTechnology()        const { return technology; }
+
+    /* Return direct param level Given a CyberParameter */
+    const int& getParamAmount(CyberParameter param);
 
     // Setters (with validation — cohesion caps the others)
-    void setCohesion(int val);
-    void setCybernationLevel(int val);
-    void setHumanRelation(int val);
-    void setEnvironment(int val);
-    void setTechnology(int val);
+    void setCohesion(const int& val);
+    void setCybernationLevel(const int& val);
+    void setHumanRelation(const int& val);
+    void setEnvironment(const int& val);
+    void setTechnology(const int& val);
 
     // Convenience: adjust by delta instead of absolute set
     void adjustParam(CyberParameter param, int delta);
+
+
 };
 
 #endif

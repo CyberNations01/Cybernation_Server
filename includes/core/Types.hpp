@@ -10,7 +10,30 @@ enum class StackType {
     UNKNOWN
 };
 
-inline StackType strtoStackType(std::string str)
+enum class CyberParameter {
+    COHESION,
+    CYBERNATION_LEVEL,
+    HUMAN_RELATION,
+    ENVIRONMENT,
+    TECHNOLOGY
+};
+
+inline CyberParameter strToCyberParameter(const std::string& str)
+{
+    if (str == "Co")
+        return CyberParameter::COHESION;
+    if (str == "Cy")
+        return CyberParameter::CYBERNATION_LEVEL;
+    if (str == "HR")
+        return CyberParameter::HUMAN_RELATION;
+    if (str == "Env")
+        return CyberParameter::ENVIRONMENT;
+    if (str == "Tech")
+        return CyberParameter::TECHNOLOGY;
+    return CyberParameter::COHESION;
+}
+
+inline StackType strtoStackType(const std::string& str)
 {
     if (str == "Wild")
         return StackType::WILD;
@@ -23,7 +46,7 @@ inline StackType strtoStackType(std::string str)
     return StackType::UNKNOWN;
 }
 
-inline std::string stackTypeToStr(StackType t) {
+inline std::string stackTypeToStr(const StackType &t) {
     switch (t) {
         case StackType::WILD:    return "Wild";
         case StackType::WASTE:   return "Waste";
@@ -32,7 +55,6 @@ inline std::string stackTypeToStr(StackType t) {
         default:                 return "Unknown";
     }
 }
-
 
 enum class TokenEffect {
     TURN_WILD,
@@ -50,15 +72,21 @@ enum class GamePhase {
 
 enum class DisruptionType {
     DISRUPT,
-    BOOST
+    BOOST,
+    STACK,
+    RESOURCE
 };
 
-inline DisruptionType strtoDisruptionType(std::string str)
+
+inline DisruptionType strtoDisruptionType(std::string &str)
 {
     if (str == "disrupt")
         return DisruptionType::DISRUPT;
     return DisruptionType::BOOST;
 }
+
+enum class EffectCondition { NONE, AND, OR };
+enum class VictoryImpact { NONE, REGULATION, AMPLIFICATION };
 
 enum class DisruptionEffect {
     // Stack changes
@@ -73,6 +101,7 @@ enum class DisruptionEffect {
     CYBERNATION,
     TECHNOLOGY,
     ENVIRONMENT,
+    
     RESOURCES,
     TOKEN,
     TRADE,
@@ -87,7 +116,7 @@ enum class DisruptionEffect {
     MOVE_PEOPLE
 };
 
-inline DisruptionEffect strtoDisruptionEffect(std::string str)
+inline DisruptionEffect strtoDisruptionEffect(const std::string &str)
 {
     if (str == "TurnWaste")  return DisruptionEffect::TURN_WASTE;
     if (str == "TurnWild")   return DisruptionEffect::TURN_WILD;

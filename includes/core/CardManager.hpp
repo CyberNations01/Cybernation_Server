@@ -49,6 +49,7 @@ public:
     bool isDeckEmpty()    const { return deck.empty(); }
     int  getDeckSize()    const { return static_cast<int>(deck.size()); }
     int  getDiscardSize() const { return static_cast<int>(discard.size()); }
+    const std::vector<T>& getDeck() const { return deck; };
 };
 
 #endif

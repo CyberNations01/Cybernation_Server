@@ -41,11 +41,18 @@ public:
 
     // ---- Card Resource ----
     CardManager<DisruptionCard> disruptionManager;
-    CardManager<Stack> stackManager;
     CardManager<Tile> tileManager;
+    CardManager<Goal> goalManager;
+    
+    CardManager<Stack> wildStackManager;
+    CardManager<Stack> wasteStackManager;
+    CardManager<Stack> devAStackManager;
+    CardManager<Stack> devBStackManager;
 
     // --- Players ---
     Player players[NUM_PLAYERS];
+
+    // {Tile, side} : {4,4} -> board[4] (t4) -> t4.getNeighborSide(4) -> -1, 0-5 
     std::pair<int, int> peopleToken;
 
     // --- Round/Phase tracking (written by RoundController) ---
@@ -55,6 +62,9 @@ public:
     int       firstPlayerId     = 0;  // Player who goes first this round
     int       currentPlayerId   = 0;  // Whose turn it is right now
     bool      gameOver          = false;
+    Goal      currentGoal;
+    
+    std::optional<DisruptionCard> activeDisruption = std::nullopt;
 
     // --- Constructor ---
     GameState();

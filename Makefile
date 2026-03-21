@@ -17,6 +17,7 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/EnvisionPhaseHandler.cpp \
           $(SRCDIR)/phase/TraversePhaseHandler.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
+          $(SRCDIR)/game/GameUtility.cpp \
           $(SRCDIR)/test/testLoadJson.cpp
 
  

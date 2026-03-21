@@ -11,13 +11,38 @@ GameState::GameState() {
     DataLoader loader;
 
     this->disruptionManager   = loader.loadDeck<DisruptionCard>("./data/disruption.json");
-    this->stackManager        = loader.loadDeck<Stack>("./data/stack.json");
     this->board               = loader.loadTile("./data/layout.json");
     this->tileManager         = CardManager<Tile>(board);
+    this->goalManager         = loader.loadDeck<Goal>("./data/goal.json");
     
-    this->stackManager.shuffle();
-    this->disruptionManager.shuffle();
+    CardManager<Stack> stackManager = loader.loadDeck<Stack>("./data/stack.json");
+    std::vector<std::vector<Stack>> stackVector(4, std::vector<Stack>());
 
+    // ! Initialize each Stack type CardManager
+    for (auto &e: stackManager.getDeck()) {
+        switch (e.getType()) {
+            case StackType::WILD:
+                stackVector[0].push_back(e);
+                break;
+            case StackType::WASTE:
+                stackVector[1].push_back(e);
+                break;
+            case StackType::DEV_A:
+                stackVector[2].push_back(e);
+                break;
+            case StackType::DEV_B:
+                stackVector[3].push_back(e);
+                break;
+            default: break;
+        }
+    }
+
+    wildStackManager  = CardManager<Stack>(stackVector[0]);
+    wasteStackManager = CardManager<Stack>(stackVector[1]);
+    devAStackManager  = CardManager<Stack>(stackVector[2]);
+    devBStackManager  = CardManager<Stack>(stackVector[3]);
+    
+    this->disruptionManager.shuffle();
 
     // Test for setup
 
