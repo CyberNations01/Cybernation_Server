@@ -7,6 +7,9 @@
 #include "Params.hpp"
 #include "Types.hpp"
 
+std::ostream& operator<<(std::ostream& os, DisruptionEffect eff);
+
+
 class DisruptionCard {
 private:
     std::string     name;
@@ -27,10 +30,10 @@ public:
     DisruptionCard();
     ~DisruptionCard() = default;
 
-    
-    const std::string&                                   getName()               const { return name; }
-    const std::string&                                   getDescription()        const { return description; }
-    DisruptionType                                       getType()               const { return type; }
+    // Getters
+    const std::string&                                   getName()        const { return name; }
+    const std::string&                                   getDescription() const { return description; }
+    DisruptionType                                       getType()        const { return type; }
     const std::vector<int>&                              getStackTargets()       const { return stackTargets; }
     const std::vector<std::pair<DisruptionEffect, int>>& getEffects()            const { return effects; }
     const std::vector<std::pair<DisruptionEffect, int>>& getCancelCosts()        const { return cancelCosts; }

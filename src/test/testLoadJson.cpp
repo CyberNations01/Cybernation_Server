@@ -155,7 +155,6 @@ void testWalkPath()
 
 }
 
-
 void testLoadGoal()
 {
     std::vector<Goal> goals = DataLoader::loadGoal("data/goal.json");
@@ -170,15 +169,16 @@ void testLoadGoal()
             std::cout << "  Type: " << vc.type
                       << " | Op: " << comparatorToStr(vc.op)
                       << " | Num: " << vc.num;
-            if (vc.position.has_value())
+            if (vc.position.has_value()) {
                 std::cout << " | Position: " << vc.position.value();
+            }
             std::cout << std::endl;
         }
 
         std::cout << "Stack Effects:" << std::endl;
         for (const auto& [stackType, values] : goal.getStackEffect()) {
             std::cout << "  " << stackTypeToStr(stackType) << ": [";
-            for (int i = 0; i < (int)values.size(); i++) {
+            for (int i = 0; i < static_cast<int>(values.size()); i++) {
                 if (i > 0) std::cout << ", ";
                 std::cout << values[i];
             }
@@ -188,6 +188,7 @@ void testLoadGoal()
         std::cout << std::endl;
     }
 }
+
 
 int main(void)
 {
