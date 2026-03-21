@@ -7,32 +7,6 @@
 #include "core/Types.hpp"
 #include <optional>
 
-enum class comparator {
-    GT, GE, EQ, LE, LT, NE
-};
-
-inline comparator strToComparator(const std::string& op) {
-    if (op == "GT") return comparator::GT;
-    if (op == "GE") return comparator::GE;
-    if (op == "EQ") return comparator::EQ;
-    if (op == "LE") return comparator::LE;
-    if (op == "LT") return comparator::LT;
-    if (op == "NE") return comparator::NE;
-    return comparator::EQ;
-}
-
-inline std::string comparatorToStr(comparator op) {
-    switch (op) {
-        case comparator::GT: return "GT";
-        case comparator::GE: return "GE";
-        case comparator::EQ: return "EQ";
-        case comparator::LE: return "LE";
-        case comparator::LT: return "LT";
-        case comparator::NE: return "NE";
-        default: return "EQ";
-    }
-}
-
 struct victory_condition {
     std::string type;
     comparator op = comparator::EQ;
