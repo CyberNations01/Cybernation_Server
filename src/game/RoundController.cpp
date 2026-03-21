@@ -3,12 +3,6 @@
 #include "phase/TraversePhaseHandler.hpp"
 #include "phase/AdoptPhaseHandler.hpp"
 
-namespace {
-bool isReadOnlyAction(const Action& action) {
-    return action.type == "get_adapt_status";
-}
-}
-
 RoundController::RoundController() {
     // Wire up the three phase handlers
     handlers[static_cast<int>(GamePhase::ENVISION)]  = std::make_unique<EnvisionPhaseHandler>();
@@ -49,10 +43,6 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
 
     // 4. Handle "pass" 
     if (action.isPass()) {
-        if (state.currentPhase == GamePhase::ADOPT) {
-            return ActionResult::invalid("Pass is not used in Adapt; finish with commit");
-        }
-
         passedPlayers.insert(action.playerId);
 
         // Check if phase is now complete
@@ -61,9 +51,7 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
         } else {
             advanceTurn(state);
         }
-        return ActionResult::success(
-            ActionMessage("status", "Player " + std::to_string(action.playerId) + " passed")
-        );
+        return ActionResult::success(ActionMessage("status", "Player " + std::to_string(action.playerId) + " passed"));
     }
 
     // 5. Delegate to the appropriate PhaseHandler
@@ -78,26 +66,7 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
     //    (the current player can act again on their NEXT turn in the cycle,
     //     unless they pass)
     if (result.ok()) {
-        // Read-only query actions should not consume the player's turn.
-        if (isReadOnlyAction(action)) {
-            return result;
-        }
-
-        // Handler may decide game has ended during action resolution.
-        if (state.gameOver) {
-            return result;
-        }
-
-        if (state.currentPhase == GamePhase::ADOPT) {
-            // Adapt advances only after explicit commit finalization.
-            if (action.type == "commit") {
-                advancePhase(state);
-            } else {
-                advanceTurn(state);
-            }
-        } else {
-            advanceTurn(state);
-        }
+        advanceTurn(state);
     }
 
     return result;
@@ -178,13 +147,6 @@ void RoundController::resetPhase(GameState& state) {
     passedPlayers.clear();
     buildTurnOrder(state.firstPlayerId);
     state.currentPlayerId = getCurrentPlayerId();
-
-    if (state.currentPhase == GamePhase::ADOPT) {
-        state.resetAdaptState();
-        state.initAdaptTrackIfNeeded();
-    } else {
-        state.resetAdaptState();
-    }
 }
 
 // ─────────────────────────────────────────────

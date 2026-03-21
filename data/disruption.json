@@ -17,17 +17,7 @@
       "Cy:-1"
     ],
     "cond": "",
-    "optional": {
-      "cancelScope": "ripple_only",
-      "ripple": {
-        "triggerStackType": "WASTE",
-        "effect": "Co:-1",
-        "cancelCost": [
-          "Cy:-1"
-        ],
-        "partialCancelable": true
-      }
-    },
+    "optional": {},
     "victoryImpact": "None",
     "cancel": true
   },
@@ -49,17 +39,7 @@
       "Cy:-1"
     ],
     "cond": "",
-    "optional": {
-      "cancelScope": "ripple_only",
-      "ripple": {
-        "triggerStackType": "WASTE",
-        "effect": "Co:-1",
-        "cancelCost": [
-          "Cy:-1"
-        ],
-        "partialCancelable": true
-      }
-    },
+    "optional": {},
     "victoryImpact": "None",
     "cancel": true
   },

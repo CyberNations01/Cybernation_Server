@@ -39,8 +39,6 @@ enum class TokenEffect {
     LOSE_COHESION,
     TURN_WASTE,
     SOLVE_DISRUPTION,
-    DEVELOP_STACK,
-    TRANSFORM_STACK,
     UNKNOWN
 };
 
@@ -127,17 +125,19 @@ enum class comparator {
     GT, GE, EQ, LE, LT, NE
 };
 
-inline comparator strToComparator(const std::string& op) {
-    if (op == "GT") return comparator::GT;
-    if (op == "GE") return comparator::GE;
-    if (op == "EQ") return comparator::EQ;
-    if (op == "LE") return comparator::LE;
-    if (op == "LT") return comparator::LT;
-    if (op == "NE") return comparator::NE;
+inline comparator strToComparator(const std::string& str)
+{
+    if (str == "GT") return comparator::GT;
+    if (str == "GE") return comparator::GE;
+    if (str == "EQ") return comparator::EQ;
+    if (str == "LE") return comparator::LE;
+    if (str == "LT") return comparator::LT;
+    if (str == "NE") return comparator::NE;
     return comparator::EQ;
 }
 
-inline std::string comparatorToStr(comparator op) {
+inline std::string comparatorToStr(const comparator& op)
+{
     switch (op) {
         case comparator::GT: return "GT";
         case comparator::GE: return "GE";
@@ -145,7 +145,7 @@ inline std::string comparatorToStr(comparator op) {
         case comparator::LE: return "LE";
         case comparator::LT: return "LT";
         case comparator::NE: return "NE";
-        default: return "EQ";
+        default:             return "EQ";
     }
 }
 
