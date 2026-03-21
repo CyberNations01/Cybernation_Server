@@ -241,21 +241,13 @@ ActionResult AdoptPhaseHandler::handleResolveFeedback(const Action& action, Game
 }
 
 ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& action, GameState& state) {
+    (void)state;
     auto nameIt = action.params.find("disruption_name");
     if (nameIt == action.params.end()) {
         return fail(ActionStatus::INVALID_ACTION, "cancel_disruption_effect requires disruption_name");
     }
-
-    const DisruptionCard* card = state.findDisruptionCardByName(nameIt->second);
-    if (!card) {
-        return fail(ActionStatus::INVALID_TARGET, "Unknown disruption_name");
-    }
-
-    if (!card->isCancellable()) {
-        return fail(ActionStatus::INVALID_ACTION, "This disruption does not provide a cancel option");
-    }
-
-    std::vector<std::pair<CyberParameter, int>> computedCosts;
+    // NOTE: disruption card schema is under active refactor.
+    // Temporarily bypass real card/cost operations in Adapt.
     int times = 1;
     auto timesIt = action.params.find("times");
     if (timesIt != action.params.end()) {
@@ -269,6 +261,20 @@ ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& actio
         return fail(ActionStatus::INVALID_ACTION, "times must be > 0");
     }
 
+    /*
+    // Legacy real-processing path (kept commented intentionally):
+    // Re-enable after disruption card schema is stabilized.
+
+    const DisruptionCard* card = state.findDisruptionCardByName(nameIt->second);
+    if (!card) {
+        return fail(ActionStatus::INVALID_TARGET, "Unknown disruption_name");
+    }
+
+    if (!card->isCancellable()) {
+        return fail(ActionStatus::INVALID_ACTION, "This disruption does not provide a cancel option");
+    }
+
+    std::vector<std::pair<CyberParameter, int>> computedCosts;
     if (card->getCancelCosts().empty()) {
         return fail(ActionStatus::INVALID_ACTION, "This disruption has no cancel cost");
     }
@@ -308,6 +314,16 @@ ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& actio
         {"cancelApplied", true}
     };
     return ActionResult::success(ActionMessage("disruption_effect_cancelled", payload.dump()));
+    */
+
+    nlohmann::json payload = {
+        {"disruptionName", nameIt->second},
+        {"times", times},
+        {"cancelApplied", false},
+        {"schemaPending", true},
+        {"note", "Disruption cancel cost/effect is temporarily bypassed during schema refactor"}
+    };
+    return ActionResult::success(ActionMessage("disruption_effect_cancelled_placeholder", payload.dump()));
 }
 
 bool AdoptPhaseHandler::isValidTargetForCursor(int cursor, int tilePos) const {

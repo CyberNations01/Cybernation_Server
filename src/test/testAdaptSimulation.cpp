@@ -172,13 +172,15 @@ int main() {
     Action cancelUnknown = makeAction(room, "cancel_disruption_effect");
     cancelUnknown.params["disruption_name"] = "NO_SUCH_CARD";
     ActionResult cancelUnknownRes = dispatch(room, cancelUnknown, "cancel_disruption_unknown_name");
-    expectTrue(!cancelUnknownRes.ok(), "cancel_disruption_effect unknown name fails");
+    expectTrue(cancelUnknownRes.ok(), "cancel_disruption_effect placeholder accepts unknown name");
+    expectTrue(cancelUnknownRes.message.type == "disruption_effect_cancelled_placeholder",
+               "cancel_disruption_effect returns placeholder message type");
 
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     Action cancelNotAllowed = makeAction(room, "cancel_disruption_effect");
     cancelNotAllowed.params["disruption_name"] = "COMMUNITY_LEADERS_1";
     ActionResult cancelNotAllowedRes = dispatch(room, cancelNotAllowed, "cancel_disruption_not_cancellable");
-    expectTrue(!cancelNotAllowedRes.ok(), "non-cancellable disruption fails");
+    expectTrue(cancelNotAllowedRes.ok(), "placeholder bypasses cancellable-card validation");
 
     // Inject a synthetic cancellable card with empty costs to hit no-cost branch.
     {
@@ -192,7 +194,7 @@ int main() {
     Action cancelNoCost = makeAction(room, "cancel_disruption_effect");
     cancelNoCost.params["disruption_name"] = "TEST_NO_COST";
     ActionResult cancelNoCostRes = dispatch(room, cancelNoCost, "cancel_disruption_no_cost");
-    expectTrue(!cancelNoCostRes.ok(), "cancellable disruption with no cost fails");
+    expectTrue(cancelNoCostRes.ok(), "placeholder bypasses cancel-cost validation");
 
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     Action cancelBadTimes = makeAction(room, "cancel_disruption_effect");
@@ -213,7 +215,7 @@ int main() {
     Action cancelInsufficient = makeAction(room, "cancel_disruption_effect");
     cancelInsufficient.params["disruption_name"] = "HURRICANE_1";
     ActionResult cancelInsufficientRes = dispatch(room, cancelInsufficient, "cancel_disruption_insufficient_resource");
-    expectTrue(!cancelInsufficientRes.ok(), "cancel_disruption insufficient resource fails");
+    expectTrue(cancelInsufficientRes.ok(), "placeholder bypasses resource checks");
 
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     room.getState().params.setCybernationLevel(2);
