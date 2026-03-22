@@ -1,5 +1,48 @@
 #include "game/GameUtility.hpp"
 
+namespace {
+bool parseCyberParameter(const std::string& raw, CyberParameter& out) {
+    if (raw == "HR" || raw == "HUMAN_RELATION") {
+        out = CyberParameter::HUMAN_RELATION; return true;
+    }
+    if (raw == "ENV" || raw == "ENVIRONMENT") {
+        out = CyberParameter::ENVIRONMENT; return true;
+    }
+    if (raw == "TECH" || raw == "TECHNOLOGY") {
+        out = CyberParameter::TECHNOLOGY; return true;
+    }
+    if (raw == "CY" || raw == "CYBERNATION" || raw == "CYBERNATION_LEVEL") {
+        out = CyberParameter::CYBERNATION_LEVEL; return true;
+    }
+    if (raw == "CO" || raw == "COHESION") {
+        out = CyberParameter::COHESION; return true;
+    }
+    return false;
+}
+
+int getParamValue(const Params& params, CyberParameter p) {
+    switch (p) {
+        case CyberParameter::COHESION: return params.getCohesion();
+        case CyberParameter::CYBERNATION_LEVEL: return params.getCybernationLevel();
+        case CyberParameter::HUMAN_RELATION: return params.getHumanRelation();
+        case CyberParameter::ENVIRONMENT: return params.getEnvironment();
+        case CyberParameter::TECHNOLOGY: return params.getTechnology();
+        default: return 0;
+    }
+}
+
+std::string cyberParameterToLabel(CyberParameter p) {
+    switch (p) {
+        case CyberParameter::COHESION: return "COHESION";
+        case CyberParameter::CYBERNATION_LEVEL: return "CYBERNATION_LEVEL";
+        case CyberParameter::HUMAN_RELATION: return "HUMAN_RELATION";
+        case CyberParameter::ENVIRONMENT: return "ENVIRONMENT";
+        case CyberParameter::TECHNOLOGY: return "TECHNOLOGY";
+        default: return "UNKNOWN";
+    }
+}
+}
+
 nlohmann::json 
 GameUtility::pathResultToJson(const int& tile, const int& side, 
                 const std::vector<std::string> & resources, 
@@ -425,4 +468,79 @@ ActionResult GameUtility::cancelDisruptionEffect(GameState& state)
         "cancel_disruption",
         "Disruption Card is cancelled"
     }};
+}
+
+ActionResult GameUtility::tradeForDisruption(GameState& state, const Action& action)
+{
+    auto sourceIt = action.params.find("source");
+    if (sourceIt == action.params.end()) {
+        return {ActionStatus::INVALID_ACTION, {"error", "trade requires source=disruption_cancel (or disruption_effect_cancel)"}};
+    }
+    const std::string& source = sourceIt->second;
+    if (source != "disruption_cancel" && source != "disruption_effect_cancel") {
+        return {ActionStatus::INVALID_ACTION, {"error", "trade is restricted to disruption cancel flows"}};
+    }
+
+    auto giveParamIt = action.params.find("give_param");
+    auto recvParamIt = action.params.find("receive_param");
+    if (giveParamIt == action.params.end() || recvParamIt == action.params.end()) {
+        return {ActionStatus::INVALID_ACTION, {"error", "trade requires params: give_param, receive_param"}};
+    }
+
+    int giveAmount = 1;
+    int recvAmount = 1;
+    auto giveAmtIt = action.params.find("give_amount");
+    auto recvAmtIt = action.params.find("receive_amount");
+    if (giveAmtIt != action.params.end()) {
+        try { giveAmount = std::stoi(giveAmtIt->second); } catch (...) { return {ActionStatus::INVALID_ACTION, {"error", "give_amount must be integer"}}; }
+    }
+    if (recvAmtIt != action.params.end()) {
+        try { recvAmount = std::stoi(recvAmtIt->second); } catch (...) { return {ActionStatus::INVALID_ACTION, {"error", "receive_amount must be integer"}}; }
+    }
+    if (giveAmount <= 0 || recvAmount <= 0) {
+        return {ActionStatus::INVALID_ACTION, {"error", "trade amounts must be > 0"}};
+    }
+
+    CyberParameter giveParam;
+    CyberParameter recvParam;
+    if (!parseCyberParameter(giveParamIt->second, giveParam) ||
+        !parseCyberParameter(recvParamIt->second, recvParam)) {
+        return {ActionStatus::INVALID_ACTION, {"error", "Unknown trade parameter"}};
+    }
+    if (giveParam == recvParam) {
+        return {ActionStatus::INVALID_ACTION, {"error", "give_param and receive_param must differ"}};
+    }
+
+    if (giveParam == CyberParameter::COHESION || recvParam == CyberParameter::COHESION) {
+        return {ActionStatus::INVALID_ACTION, {"error", "Cohesion cannot be used in trade"}};
+    }
+
+    const int beforeGive = getParamValue(state.params, giveParam);
+    const int beforeRecv = getParamValue(state.params, recvParam);
+    if (beforeGive < giveAmount) {
+        return {ActionStatus::INSUFFICIENT_RESOURCE, {"error", "Not enough resource to trade"}};
+    }
+
+    state.params.adjustParam(giveParam, -giveAmount);
+    state.params.adjustParam(recvParam, recvAmount);
+
+    const int afterGive = getParamValue(state.params, giveParam);
+    const int afterRecv = getParamValue(state.params, recvParam);
+
+    nlohmann::json payload = {
+        {"giveParam", cyberParameterToLabel(giveParam)},
+        {"giveAmount", giveAmount},
+        {"receiveParam", cyberParameterToLabel(recvParam)},
+        {"receiveAmount", recvAmount},
+        {"before", {
+            {"give", beforeGive},
+            {"receive", beforeRecv}
+        }},
+        {"after", {
+            {"give", afterGive},
+            {"receive", afterRecv}
+        }}
+    };
+
+    return ActionResult::success(ActionMessage("adapt_disruption_trade", payload.dump()));
 }

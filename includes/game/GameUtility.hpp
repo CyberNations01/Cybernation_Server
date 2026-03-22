@@ -14,6 +14,7 @@ class GameUtility {
 
         static ActionResult applyDisruptionEffect(GameState& state, const Action& action);
         static ActionResult cancelDisruptionEffect(GameState& state);
+        static ActionResult tradeForDisruption(GameState& state, const Action& action);
         static void changeTileStack(GameState& state, int tilePos, StackType targetType);
 
     private:

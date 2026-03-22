@@ -61,6 +61,8 @@ enum class TokenEffect {
     LOSE_COHESION,
     TURN_WASTE,
     SOLVE_DISRUPTION,
+    DEVELOP_STACK,
+    TRANSFORM_STACK,
     UNKNOWN
 };
 
