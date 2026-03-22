@@ -30,8 +30,7 @@ GameState::GameState() {
     players[0].setFirstPlayer(true);
 
     DataLoader loader;
-    disruptionCatalog = loader.loadDisrupt("./data/disruption.json");
-    disruptionManager = CardManager<DisruptionCard>(disruptionCatalog);
+    disruptionManager = CardManager<DisruptionCard>(loader.loadDisrupt("./data/disruption.json"));
     board = loader.loadTile("./data/layout.json");
     tileManager = CardManager<Tile>(board);
     goalManager = loader.loadDeck<Goal>("./data/goal.json");

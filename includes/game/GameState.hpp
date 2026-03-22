@@ -44,7 +44,6 @@ public:
 
     // ---- Card Resource ----
     CardManager<DisruptionCard> disruptionManager;
-    std::vector<DisruptionCard> disruptionCatalog;
     CardManager<Tile> tileManager;
     CardManager<Goal> goalManager;
     

@@ -50,6 +50,7 @@ public:
     int  getDeckSize()    const { return static_cast<int>(deck.size()); }
     int  getDiscardSize() const { return static_cast<int>(discard.size()); }
     const std::vector<T>& getDeck() const { return deck; };
+    const std::vector<T>& getDiscard() const { return discard; };
 };
 
 #endif

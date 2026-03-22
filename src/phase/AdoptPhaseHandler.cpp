@@ -140,8 +140,14 @@ bool AdoptPhaseHandler::isAdaptTileAvailable(GameState& state, int tilePos) cons
 }
 
 const DisruptionCard* AdoptPhaseHandler::findDisruptionCardByName(const GameState& state, const std::string& name) const {
-    for (const auto& card : state.disruptionCatalog) {
+    for (const auto& card : state.disruptionManager.getDeck()) {
         if (card.getName() == name) return &card;
+    }
+    for (const auto& card : state.disruptionManager.getDiscard()) {
+        if (card.getName() == name) return &card;
+    }
+    if (state.activeDisruption.has_value() && state.activeDisruption->getName() == name) {
+        return &(*state.activeDisruption);
     }
     return nullptr;
 }
