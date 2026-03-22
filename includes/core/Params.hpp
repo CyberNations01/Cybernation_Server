@@ -4,6 +4,7 @@
 
 class Params {
 private:
+    static constexpr int MAX_PARAMS_LEVEL = 25; 
     int cohesion         = 10;
     int cybernationLevel = 2;
     int humanRelation    = 7;

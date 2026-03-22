@@ -28,7 +28,6 @@ GameState::GameState() {
                 stackVector[1].push_back(e);
                 break;
             case StackType::DEV_A:
-                stackVector[2].push_back(e);
                 break;
             case StackType::DEV_B:
                 stackVector[3].push_back(e);

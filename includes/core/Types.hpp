@@ -134,7 +134,7 @@ inline DisruptionEffect strtoDisruptionEffect(const std::string &str)
     if (str == "IgnoreCohesionEffect") return DisruptionEffect::IGNORE_COHESION_EFFECT;
     if (str == "SwapGoal")   return DisruptionEffect::SWAP_GOAL;
     if (str == "DrawGoal")   return DisruptionEffect::DRAW_GOAL;
-    if (str == "MovPpl")     return DisruptionEffect::MOVE_PEOPLE;
+    if (str == "MovePpl")     return DisruptionEffect::MOVE_PEOPLE;
     return DisruptionEffect::COHESION; // fallback
 }
 

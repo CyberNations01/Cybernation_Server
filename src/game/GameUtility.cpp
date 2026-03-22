@@ -240,7 +240,16 @@ void GameUtility::changeTileStack(GameState& state,
 
 ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& action)
 {
+
     const DisruptionCard& card = state.activeDisruption.value();
+
+    if (!state.activeDisruption.has_value()) {
+        return {ActionStatus::INVALID_ACTION, {
+            "resolve_disruption",
+            "Disruption Card is not drawn"
+        }};
+    }
+
 
     // ─── Step 1: Check preconditions ────────────────────────────────
     // ResourceCondition cards only fire if the param comparison holds
@@ -384,14 +393,36 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
         }
     }
 
-    return ActionResult::success(ActionMessage("resolve_disruption", "Disruption applied"));
+    return ActionResult::success(ActionMessage("resolve_disruption", "Disruption is resolved"));
 }
 
 
 ActionResult GameUtility::cancelDisruptionEffect(GameState& state)
 {
+    if (!state.activeDisruption.has_value()) {
+        return {ActionStatus::INVALID_ACTION, {
+            "cancel_disruption",
+            "Disruption Card is not drawn"
+        }};
+    }
+
+    DisruptionCard card = state.activeDisruption.value();
+
+    if (!card.isCancellable()) {
+        return {ActionStatus::INVALID_ACTION, {
+            "cancel_disruption",
+            "This card cannot be cancelled"
+        }};
+    }
+
+    /* Apply Resource Effect to GameState */
+    const auto& cancelCosts = card.getCosts();
+    for (const auto& cost: cancelCosts)
+        resolveParamEffect(state, cost);
+    
+    state.activeDisruption = std::nullopt;
     return {ActionStatus::SUCCESS, {
         "cancel_disruption",
-        "Not Implemented"
+        "Disruption Card is cancelled"
     }};
 }

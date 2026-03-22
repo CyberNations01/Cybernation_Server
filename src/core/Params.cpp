@@ -6,7 +6,7 @@ Params::Params(int cyberLevel, int humanRel, int env, int tech, int coh)
       environment(env), technology(tech), cohesion(coh) {}
 
 void Params::setCohesion(const int& val) {
-    if (val < 0 || val > 20) return;
+    if (val < 0 || val > MAX_PARAMS_LEVEL) return;
     cohesion = val;
     // Cohesion caps all other resources
     humanRelation = std::min(humanRelation, cohesion);
@@ -15,23 +15,23 @@ void Params::setCohesion(const int& val) {
 }
 
 void Params::setCybernationLevel(const int& val) {
-    if (val < 0 || val > 20) return;
+    if (val < 0 || val > MAX_PARAMS_LEVEL) return;
     cybernationLevel = val;
 }
 
 void Params::setHumanRelation(const int& val) {
-    if (val < 0 || val > 20 || val > cohesion) return;
-    humanRelation = val;
+    if (val < 0) return;
+    humanRelation = std::min(std::min(val, MAX_PARAMS_LEVEL), cohesion);
 }
 
 void Params::setEnvironment(const int& val) {
     if (val < 0 || val > 20 || val > cohesion) return;
-    environment = val;
+    environment = std::min(std::min(val, MAX_PARAMS_LEVEL), cohesion);;
 }
 
 void Params::setTechnology(const int& val) {
     if (val < 0 || val > 20 || val > cohesion) return;
-    technology = val;
+    technology = std::min(std::min(val, MAX_PARAMS_LEVEL), cohesion);;
 }
 
 void Params::adjustParam(CyberParameter param, int delta) {
@@ -62,7 +62,7 @@ const int &Params::getParamAmount(CyberParameter param)
         case CyberParameter::ENVIRONMENT:
             return this->environment;
         case CyberParameter::TECHNOLOGY:
-            return this->cohesion;
+            return this->technology;
     }
     return -1;
 }

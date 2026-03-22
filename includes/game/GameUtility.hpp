@@ -16,7 +16,6 @@ class GameUtility {
         static ActionResult cancelDisruptionEffect(GameState& state);
         static void changeTileStack(GameState& state, int tilePos, StackType targetType);
 
-
     private:
         // ! WalkPath Internal
         static nlohmann::json pathResultToJson(
@@ -31,7 +30,6 @@ class GameUtility {
         static bool resolveResourceEffect(GameState& state, 
                                           const std::vector<std::pair<DisruptionEffect, int>>& effect,
                                           int limit);
-
 };
 
 #endif

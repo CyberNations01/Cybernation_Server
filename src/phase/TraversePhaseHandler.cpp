@@ -17,7 +17,7 @@ ActionResult TraversePhaseHandler::handleWalkPath(GameState &state)
     return GameUtility::walkPath(state);
 }
 
-ActionResult TraversePhaseHandler::handleDrawDisruption( GameState &state)
+ActionResult TraversePhaseHandler::handleDrawDisruption(GameState &state)
 {
     return GameUtility::drawDisruption(state);
 }
