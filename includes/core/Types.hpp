@@ -33,6 +33,36 @@ inline CyberParameter strToCyberParameter(const std::string& str)
     return CyberParameter::COHESION;
 }
 
+inline bool parseCyberParameter(const std::string& raw, CyberParameter& out) {
+    if (raw == "Co" || raw == "CO" || raw == "COHESION") {
+        out = CyberParameter::COHESION; return true;
+    }
+    if (raw == "Cy" || raw == "CY" || raw == "CYBERNATION" || raw == "CYBERNATION_LEVEL") {
+        out = CyberParameter::CYBERNATION_LEVEL; return true;
+    }
+    if (raw == "HR" || raw == "HUMAN_RELATION") {
+        out = CyberParameter::HUMAN_RELATION; return true;
+    }
+    if (raw == "Env" || raw == "ENV" || raw == "ENVIRONMENT") {
+        out = CyberParameter::ENVIRONMENT; return true;
+    }
+    if (raw == "Tech" || raw == "TECH" || raw == "TECHNOLOGY") {
+        out = CyberParameter::TECHNOLOGY; return true;
+    }
+    return false;
+}
+
+inline std::string cyberParameterToLabel(const CyberParameter p) {
+    switch (p) {
+        case CyberParameter::COHESION: return "COHESION";
+        case CyberParameter::CYBERNATION_LEVEL: return "CYBERNATION_LEVEL";
+        case CyberParameter::HUMAN_RELATION: return "HUMAN_RELATION";
+        case CyberParameter::ENVIRONMENT: return "ENVIRONMENT";
+        case CyberParameter::TECHNOLOGY: return "TECHNOLOGY";
+        default: return "UNKNOWN";
+    }
+}
+
 inline StackType strtoStackType(const std::string& str)
 {
     if (str == "Wild")
@@ -66,11 +96,50 @@ enum class TokenEffect {
     UNKNOWN
 };
 
+inline std::string tokenEffectToStr(const TokenEffect effect) {
+    switch (effect) {
+        case TokenEffect::TURN_WILD: return "TURN_WILD";
+        case TokenEffect::LOSE_COHESION: return "LOSE_COHESION";
+        case TokenEffect::TURN_WASTE: return "TURN_WASTE";
+        case TokenEffect::SOLVE_DISRUPTION: return "SOLVE_DISRUPTION";
+        case TokenEffect::DEVELOP_STACK: return "DEVELOP_STACK";
+        case TokenEffect::TRANSFORM_STACK: return "TRANSFORM_STACK";
+        case TokenEffect::UNKNOWN:
+        default: return "UNKNOWN";
+    }
+}
+
+inline TokenEffect strToTokenEffect(const std::string& str) {
+    if (str == "TURN_WILD") return TokenEffect::TURN_WILD;
+    if (str == "LOSE_COHESION") return TokenEffect::LOSE_COHESION;
+    if (str == "TURN_WASTE") return TokenEffect::TURN_WASTE;
+    if (str == "SOLVE_DISRUPTION") return TokenEffect::SOLVE_DISRUPTION;
+    if (str == "DEVELOP_STACK") return TokenEffect::DEVELOP_STACK;
+    if (str == "TRANSFORM_STACK") return TokenEffect::TRANSFORM_STACK;
+    return TokenEffect::UNKNOWN;
+}
+
 enum class GamePhase {
     ENVISION,
     TRAVERSE,
     ADOPT,
 };
+
+inline std::string gamePhaseToStr(const GamePhase phase) {
+    switch (phase) {
+        case GamePhase::ENVISION: return "ENVISION";
+        case GamePhase::TRAVERSE: return "TRAVERSE";
+        case GamePhase::ADOPT: return "ADOPT";
+        default: return "UNKNOWN";
+    }
+}
+
+inline GamePhase strToGamePhase(const std::string& str) {
+    if (str == "ENVISION") return GamePhase::ENVISION;
+    if (str == "TRAVERSE") return GamePhase::TRAVERSE;
+    if (str == "ADOPT") return GamePhase::ADOPT;
+    return GamePhase::ENVISION;
+}
 
 enum class DisruptionType {
     DISRUPT,

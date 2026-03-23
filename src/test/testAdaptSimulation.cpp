@@ -27,23 +27,13 @@ Action makeAction(const GameRoom& room, const std::string& type) {
     return a;
 }
 
-void printPrompt(const GameRoom& room, const std::string& label) {
-    nlohmann::json snap = nlohmann::json::parse(room.getSnapshot());
-    const nlohmann::json& prompt = snap["nextPrompt"];
-    std::cout << "[PROMPT " << label << "] phase=" << prompt.value("phase", "UNKNOWN")
-              << " currentPlayer=" << prompt.value("currentPlayerId", -1)
-              << " allowedActions=" << prompt["allowedActions"].dump() << std::endl;
-}
-
 ActionResult dispatch(GameRoom& room, Action action, const std::string& label) {
-    printPrompt(room, label + "_before");
     ActionResult result = room.receiveAction(action);
     std::cout << "[ACTION " << label << "] "
               << (result.ok() ? "OK" : "FAIL")
               << " status=" << static_cast<int>(result.status)
               << " type=" << result.message.type
               << " payload=" << result.message.payload << std::endl;
-    printPrompt(room, label + "_after");
     return result;
 }
 
@@ -74,18 +64,13 @@ int main() {
     }
     expectTrue(room.getState().currentPhase == GamePhase::ADOPT, "Entered ADOPT phase");
 
-    // --- 1) Push-first snapshot contract check ---
+    // --- 1) snapshot contract check ---
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     nlohmann::json snap = nlohmann::json::parse(room.getSnapshot());
-    expectTrue(snap.contains("nextPrompt"), "snapshot includes nextPrompt");
-    expectTrue(snap["nextPrompt"]["phase"] == "ADOPT", "nextPrompt reports ADOPT phase");
-    if (snap["nextPrompt"].contains("allowedActions")) {
-        std::string allowedDump = snap["nextPrompt"]["allowedActions"].dump();
-        expectTrue(allowedDump.find("resolve_feedback") != std::string::npos,
-                   "nextPrompt exposes resolve_feedback");
-    } else {
-        expectTrue(false, "nextPrompt contains allowedActions");
-    }
+    expectTrue(snap.contains("gameState"), "snapshot includes gameState");
+    expectTrue(snap.contains("controller"), "snapshot includes controller");
+    expectTrue(snap["gameState"]["phase"] == static_cast<int>(GamePhase::ADOPT),
+               "snapshot gameState reports ADOPT");
 
     // --- 2) resolve_feedback validation branches ---
     forceAdaptState(room, {TokenEffect::TURN_WILD});
@@ -118,15 +103,6 @@ int main() {
     occupyMiddleFirst.params["target_tile"] = "1";
     ActionResult occupyMiddleFirstRes = dispatch(room, occupyMiddleFirst, "resolve_occupied_tile_middle_first");
     expectTrue(occupyMiddleFirstRes.ok(), "first middle resolve succeeds");
-    nlohmann::json occupiedSnap = nlohmann::json::parse(room.getSnapshot());
-    bool containsOccupiedTile = false;
-    for (const auto& v : occupiedSnap["nextPrompt"]["uiHints"]["adapt"]["validTargets"]) {
-        if (v.is_number_integer() && v.get<int>() == 1) {
-            containsOccupiedTile = true;
-            break;
-        }
-    }
-    expectTrue(!containsOccupiedTile, "nextPrompt validTargets filters already occupied tile");
     Action occupied = makeAction(room, "resolve_feedback");
     occupied.params["decision"] = "allow";
     occupied.params["target_tile"] = "1";

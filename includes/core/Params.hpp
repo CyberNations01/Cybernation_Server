@@ -24,7 +24,7 @@ public:
     const int& getTechnology()        const { return technology; }
 
     /* Return direct param level Given a CyberParameter */
-    const int& getParamAmount(CyberParameter param);
+    int getParamAmount(CyberParameter param) const;
 
     // Setters (with validation — cohesion caps the others)
     void setCohesion(const int& val);

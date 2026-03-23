@@ -50,7 +50,7 @@ void Params::adjustParam(CyberParameter param, int delta) {
 }
 
 
-const int &Params::getParamAmount(CyberParameter param)
+int Params::getParamAmount(CyberParameter param) const
 {
     switch (param) {
         case CyberParameter::COHESION:
@@ -64,5 +64,5 @@ const int &Params::getParamAmount(CyberParameter param)
         case CyberParameter::TECHNOLOGY:
             return this->technology;
     }
-    return -1;
+    return 0;
 }

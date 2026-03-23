@@ -1,46 +1,6 @@
 #include "game/GameUtility.hpp"
 
 namespace {
-bool parseCyberParameter(const std::string& raw, CyberParameter& out) {
-    if (raw == "HR" || raw == "HUMAN_RELATION") {
-        out = CyberParameter::HUMAN_RELATION; return true;
-    }
-    if (raw == "ENV" || raw == "ENVIRONMENT") {
-        out = CyberParameter::ENVIRONMENT; return true;
-    }
-    if (raw == "TECH" || raw == "TECHNOLOGY") {
-        out = CyberParameter::TECHNOLOGY; return true;
-    }
-    if (raw == "CY" || raw == "CYBERNATION" || raw == "CYBERNATION_LEVEL") {
-        out = CyberParameter::CYBERNATION_LEVEL; return true;
-    }
-    if (raw == "CO" || raw == "COHESION") {
-        out = CyberParameter::COHESION; return true;
-    }
-    return false;
-}
-
-int getParamValue(const Params& params, CyberParameter p) {
-    switch (p) {
-        case CyberParameter::COHESION: return params.getCohesion();
-        case CyberParameter::CYBERNATION_LEVEL: return params.getCybernationLevel();
-        case CyberParameter::HUMAN_RELATION: return params.getHumanRelation();
-        case CyberParameter::ENVIRONMENT: return params.getEnvironment();
-        case CyberParameter::TECHNOLOGY: return params.getTechnology();
-        default: return 0;
-    }
-}
-
-std::string cyberParameterToLabel(CyberParameter p) {
-    switch (p) {
-        case CyberParameter::COHESION: return "COHESION";
-        case CyberParameter::CYBERNATION_LEVEL: return "CYBERNATION_LEVEL";
-        case CyberParameter::HUMAN_RELATION: return "HUMAN_RELATION";
-        case CyberParameter::ENVIRONMENT: return "ENVIRONMENT";
-        case CyberParameter::TECHNOLOGY: return "TECHNOLOGY";
-        default: return "UNKNOWN";
-    }
-}
 }
 
 nlohmann::json 
@@ -515,8 +475,8 @@ ActionResult GameUtility::tradeForDisruption(GameState& state, const Action& act
         return {ActionStatus::INVALID_ACTION, {"error", "Cohesion cannot be used in trade"}};
     }
 
-    const int beforeGive = getParamValue(state.params, giveParam);
-    const int beforeRecv = getParamValue(state.params, recvParam);
+    const int beforeGive = state.params.getParamAmount(giveParam);
+    const int beforeRecv = state.params.getParamAmount(recvParam);
     if (beforeGive < giveAmount) {
         return {ActionStatus::INSUFFICIENT_RESOURCE, {"error", "Not enough resource to trade"}};
     }
@@ -524,8 +484,8 @@ ActionResult GameUtility::tradeForDisruption(GameState& state, const Action& act
     state.params.adjustParam(giveParam, -giveAmount);
     state.params.adjustParam(recvParam, recvAmount);
 
-    const int afterGive = getParamValue(state.params, giveParam);
-    const int afterRecv = getParamValue(state.params, recvParam);
+    const int afterGive = state.params.getParamAmount(giveParam);
+    const int afterRecv = state.params.getParamAmount(recvParam);
 
     nlohmann::json payload = {
         {"giveParam", cyberParameterToLabel(giveParam)},

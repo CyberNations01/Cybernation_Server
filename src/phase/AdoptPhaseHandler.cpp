@@ -6,19 +6,6 @@
 #include "game/GameUtility.hpp"
 
 namespace {
-std::string tokenEffectToString(TokenEffect effect) {
-    switch (effect) {
-        case TokenEffect::TURN_WILD: return "TURN_WILD";
-        case TokenEffect::LOSE_COHESION: return "LOSE_COHESION";
-        case TokenEffect::TURN_WASTE: return "TURN_WASTE";
-        case TokenEffect::SOLVE_DISRUPTION: return "SOLVE_DISRUPTION";
-        case TokenEffect::DEVELOP_STACK: return "DEVELOP_STACK";
-        case TokenEffect::TRANSFORM_STACK: return "TRANSFORM_STACK";
-        case TokenEffect::UNKNOWN:
-        default: return "UNKNOWN";
-    }
-}
-
 std::string stackTypeToLabel(StackType type) {
     switch (type) {
         case StackType::WILD: return "WILD";
@@ -215,7 +202,7 @@ ActionResult AdoptPhaseHandler::handleResolveFeedback(const Action& action, Game
 
     nlohmann::json payload = {
         {"resolvedIndex", resolvedIndex},
-        {"token", tokenEffectToString(effect)},
+        {"token", tokenEffectToStr(effect)},
         {"targetTile", targetTile},
         {"decision", decision},
         {"effectApplied", appliedEffect},
