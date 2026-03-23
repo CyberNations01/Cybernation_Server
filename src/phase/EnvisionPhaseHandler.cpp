@@ -60,6 +60,14 @@ ActionResult EnvisionPhaseHandler::handleShiftPower(const Action& action, GameSt
         return {ActionStatus::INVALID_TARGET,{"error","Target player does not exist"}};
     }
 
+    // Cost: one People Relationship
+    if (state.params.getParamAmount(CyberParameter::HUMAN_RELATION) < 1){
+        return {ActionStatus::INSUFFICIENT_RESOURCE, {"error", "Not enough People Relationship"}};
+    }
+
+    // Consume the cost
+    state.params.adjustParam(CyberParameter::HUMAN_RELATION, -1);
+
     // Remove first-player token from current holder.
     int currentFirstPlayerId = state.findFirstPlayer();
     if(currentFirstPlayerId >= 0){
@@ -78,16 +86,28 @@ ActionResult EnvisionPhaseHandler::handleShiftPower(const Action& action, GameSt
 
 ActionResult EnvisionPhaseHandler::handleComeTogether(const Action& action, GameState& state) {
     (void)action; // not used currently
+    int currentEnvironment = state.params.getParamAmount(CyberParameter::ENVIRONMENT);
+    if (currentEnvironment < 1){
+        return ActionResult::invalid("Not enough environment relationship for come_together");
+    }
+    // Cost 1 environment, gain 1 cohesion
+    state.params.adjustParam(CyberParameter::ENVIRONMENT,-1);
     state.params.adjustParam(CyberParameter::COHESION,1);
 
-    return {ActionResult::success({"info", "Cohesion increased by 1"})};
+    return {ActionResult::success({"info", "Spent 1 environment relationship to increase cohesion by 1"})};
 }
 
 ActionResult EnvisionPhaseHandler::handlePrepare(const Action& action, GameState& state) {
     (void)action; // not used currently
+    int currentPeople = state.params.getParamAmount(CyberParameter::HUMAN_RELATION);
+    if(currentPeople < 2){
+        return ActionResult::invalid("Not enough people relationship for Prepare");
+    }
+    // Cost 2 people relationships, gain 1 cybernation level
+    state.params.adjustParam(CyberParameter::HUMAN_RELATION, -2);
     state.params.adjustParam(CyberParameter::CYBERNATION_LEVEL,1);
 
-    return {ActionResult::success({"info","Cybernation level increased by 1"})};
+    return {ActionResult::success({"info","Spent 2 people relationships to increase cybernation level by 1"})};
 }
 
 ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameState& state){

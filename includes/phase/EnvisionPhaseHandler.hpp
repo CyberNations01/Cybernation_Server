@@ -12,7 +12,7 @@
  *   - "shift_power" : pass the first-player token to another player 
  *   - "come_together": increase cohesion by 1
  *   - "prepare": increase cybernation level by 1
- *   - "set_course": move people token to a target tile/side.
+ *   - "set_course": move people token to a target tile/side. (simple)
  * 
  * 
  * Reserved for future extension:
