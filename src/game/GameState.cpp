@@ -1,4 +1,6 @@
 #include "game/GameState.hpp"
+#include <algorithm>
+#include <random>
 
 GameState::GameState() {
     // Initialize players
@@ -28,6 +30,7 @@ GameState::GameState() {
                 stackVector[1].push_back(e);
                 break;
             case StackType::DEV_A:
+                stackVector[2].push_back(e);
                 break;
             case StackType::DEV_B:
                 stackVector[3].push_back(e);
@@ -64,6 +67,7 @@ GameState::GameState() {
     
     // Build initial token bag from board
     rebuildTokenBag();
+    fillFeedbackTrackFromBag();
 }
 
 Tile* GameState::getTile(int position) {
@@ -98,10 +102,47 @@ int GameState::findFirstPlayer() const
     return 0;
 }
 
+TokenEffect GameState::mapStackTypeToFeedbackToken(StackType type) const{
+    switch(type){
+        case StackType::WILD:
+            return TokenEffect::TURN_WILD;
+        case StackType::WASTE:
+            return TokenEffect::LOSE_COHESION;
+        case StackType::DEV_A: // Agora
+            return TokenEffect::SOLVE_DISRUPTION;
+        case StackType::DEV_B:
+            return TokenEffect::TURN_WASTE;
+        default:
+            return TokenEffect::UNKNOWN;
+    }
+}
+
 void GameState::rebuildTokenBag() {
     tokenBag.clear();
+    // Rebuild bag from current board state by drawing matching tokens from reserve.
     for (const auto& tile : board) {
-        tokenBag.push_back(static_cast<TokenEffect>(static_cast<int>(tile.getEffectiveType())));
+        TokenEffect token = mapStackTypeToFeedbackToken(tile.getEffectiveType());
+        if (token == TokenEffect::UNKNOWN){
+            continue;
+        }
+        if (pool.draw(token)){
+            tokenBag.push_back(token);
+        }
+        // If reserve is empty for that token, we silently skip for now.
+        // Later you can change this to logging or error handling.
+    }
+
+    // Shuffle bag
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(tokenBag.begin(), tokenBag.end(), gen);
+}
+
+void GameState::fillFeedbackTrackFromBag(){
+    for(int i = 0; i < FEEDBACK_TRACK_SIZE; ++i){
+        if (!tokenBag.empty()){
+            feedbackTrack[i] = tokenBag.back();
+        }
     }
 }
 
