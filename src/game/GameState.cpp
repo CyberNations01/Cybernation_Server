@@ -1,69 +1,79 @@
 #include "game/GameState.hpp"
+#include <map>
+
+namespace {
+bool compareWithOp(int lhs, comparator op, int rhs) {
+    switch (op) {
+        case comparator::GT: return lhs > rhs;
+        case comparator::GE: return lhs >= rhs;
+        case comparator::EQ: return lhs == rhs;
+        case comparator::LE: return lhs <= rhs;
+        case comparator::LT: return lhs < rhs;
+        case comparator::NE: return lhs != rhs;
+        default: return false;
+    }
+}
+
+bool isPosMatch(int tilePos, const std::optional<std::string>& pos) {
+    if (!pos.has_value() || pos->empty()) return true;
+    if (*pos == "inner") return tilePos == 0;
+    if (*pos == "middle") return tilePos >= 1 && tilePos <= 6;
+    if (*pos == "outer") return tilePos >= 7 && tilePos <= 10;
+    return false;
+}
+}
 
 GameState::GameState() {
-    // Initialize players
     for (int i = 0; i < NUM_PLAYERS; ++i) {
         players[i] = Player(i);
     }
     players[0].setFirstPlayer(true);
 
-    // Load static resource 
     DataLoader loader;
+    disruptionManager = CardManager<DisruptionCard>(loader.loadDisrupt("./data/disruption.json"));
+    board = loader.loadTile("./data/layout.json");
+    tileManager = CardManager<Tile>(board);
+    goalManager = loader.loadDeck<Goal>("./data/goal.json");
+    if (!goalManager.isDeckEmpty()) {
+        currentGoal = goalManager.draw();
+    }
 
-    this->disruptionManager   = loader.loadDeck<DisruptionCard>("./data/disruption.json");
-    this->board               = loader.loadTile("./data/layout.json");
-    this->tileManager         = CardManager<Tile>(board);
-    this->goalManager         = loader.loadDeck<Goal>("./data/goal.json");
-    
-    CardManager<Stack> stackManager = loader.loadDeck<Stack>("./data/stack.json");
+    CardManager<Stack> allStackManager = loader.loadDeck<Stack>("./data/stack.json");
     std::vector<std::vector<Stack>> stackVector(4, std::vector<Stack>());
-
-    // ! Initialize each Stack type CardManager
-    for (auto &e: stackManager.getDeck()) {
-        switch (e.getType()) {
-            case StackType::WILD:
-                stackVector[0].push_back(e);
-                break;
-            case StackType::WASTE:
-                stackVector[1].push_back(e);
-                break;
-            case StackType::DEV_A:
-                break;
-            case StackType::DEV_B:
-                stackVector[3].push_back(e);
-                break;
+    std::map<int, Stack> stackById;
+    for (const auto& s : allStackManager.getDeck()) {
+        stackById[s.getId()] = s;
+        switch (s.getType()) {
+            case StackType::WILD: stackVector[0].push_back(s); break;
+            case StackType::WASTE: stackVector[1].push_back(s); break;
+            case StackType::DEV_A: stackVector[2].push_back(s); break;
+            case StackType::DEV_B: stackVector[3].push_back(s); break;
             default: break;
         }
     }
-
-    wildStackManager  = CardManager<Stack>(stackVector[0]);
+    wildStackManager = CardManager<Stack>(stackVector[0]);
     wasteStackManager = CardManager<Stack>(stackVector[1]);
-    devAStackManager  = CardManager<Stack>(stackVector[2]);
-    devBStackManager  = CardManager<Stack>(stackVector[3]);
-    
-    this->disruptionManager.shuffle();
+    devAStackManager = CardManager<Stack>(stackVector[2]);
+    devBStackManager = CardManager<Stack>(stackVector[3]);
 
-    // Test for setup
+    disruptionManager.shuffle();
 
-    std::map<int, Stack> stackById;
-    while (!stackManager.isDeckEmpty()) {
-        Stack s = stackManager.draw();
-        stackById[s.getId()] = s;
-    }
+    int baseId[]    = {2, 9, 11, 1, 3, 4, 17, 12, 16, 22, 14};
+    int overlayId[] = {26, -1, 42, -1, -1, -1, -1, -1, 35, -1, 41};
+    peopleToken = {4, 4};
 
-    int baseId[]    = {2,   9,  11,   1,   3,   4,  17,  12,  16,  22,  14};
-    int overlayId[] = {26,  -1,  42,  -1,  -1,  -1,  -1,  -1,  35,  -1,  41};
-    this->peopleToken = {4, 4};
-
-    for (int i = 0; i < NUM_TILE; i++) {
-        board[i].setBase(stackById[baseId[i]]);
+    for (int i = 0; i < NUM_TILE; ++i) {
+        auto baseIt = stackById.find(baseId[i]);
+        if (baseIt != stackById.end()) board[i].setBase(baseIt->second);
         if (overlayId[i] >= 0) {
-            board[i].setOverlay(stackById[overlayId[i]]);
+            auto overlayIt = stackById.find(overlayId[i]);
+            if (overlayIt != stackById.end()) board[i].setOverlay(overlayIt->second);
         }
     }
-    
-    // Build initial token bag from board
+
     rebuildTokenBag();
+    adaptTrack.clear();
+    adaptCursor = 0;
 }
 
 Tile* GameState::getTile(int position) {
@@ -99,10 +109,70 @@ int GameState::findFirstPlayer() const
 }
 
 void GameState::rebuildTokenBag() {
-    tokenBag.clear();
-    for (const auto& tile : board) {
-        tokenBag.push_back(static_cast<TokenEffect>(static_cast<int>(tile.getEffectiveType())));
+    tokenManager.rebuildBagFromBoard(board, pool);
+    syncTokenBagFromManager();
+}
+
+void GameState::syncTokenBagFromManager() {
+    tokenBag = tokenManager.getBag();
+}
+
+void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag) {
+    tokenManager.setBag(nextBag);
+    syncTokenBagFromManager();
+}
+
+bool GameState::isActiveGoalMet() const {
+    const auto& conditions = currentGoal.getConditions();
+    if (conditions.empty()) return false;
+
+    for (const auto& cond : conditions) {
+        int lhs = 0;
+        if (cond.type == "Wild") {
+            for (const auto& tile : board) {
+                if (tile.getEffectiveType() == StackType::WILD &&
+                    isPosMatch(tile.getPosition(), cond.position)) {
+                    ++lhs;
+                }
+            }
+        } else if (cond.type == "Waste") {
+            for (const auto& tile : board) {
+                if (tile.getEffectiveType() == StackType::WASTE &&
+                    isPosMatch(tile.getPosition(), cond.position)) {
+                    ++lhs;
+                }
+            }
+        } else if (cond.type == "DevA") {
+            for (const auto& tile : board) {
+                if (tile.getEffectiveType() == StackType::DEV_A &&
+                    isPosMatch(tile.getPosition(), cond.position)) {
+                    ++lhs;
+                }
+            }
+        } else if (cond.type == "DevB") {
+            for (const auto& tile : board) {
+                if (tile.getEffectiveType() == StackType::DEV_B &&
+                    isPosMatch(tile.getPosition(), cond.position)) {
+                    ++lhs;
+                }
+            }
+        } else if (cond.type == "Co" || cond.type == "Cohesion") {
+            lhs = params.getCohesion();
+        } else if (cond.type == "Cy" || cond.type == "Cybernation") {
+            lhs = params.getCybernationLevel();
+        } else if (cond.type == "HR" || cond.type == "HumanRelation") {
+            lhs = params.getHumanRelation();
+        } else if (cond.type == "Env" || cond.type == "Environment") {
+            lhs = params.getEnvironment();
+        } else if (cond.type == "Tech" || cond.type == "Technology") {
+            lhs = params.getTechnology();
+        } else {
+            return false;
+        }
+
+        if (!compareWithOp(lhs, cond.op, cond.num)) return false;
     }
+    return true;
 }
 
 nlohmann::json GameState::toJson() const {
@@ -117,6 +187,11 @@ nlohmann::json GameState::toJson() const {
     j["currentPlayerId"] = currentPlayerId;
     j["firstPlayerId"]   = firstPlayerId;
     j["gameOver"]        = gameOver;
+    j["activeGoal"] = {
+        {"id", currentGoal.getId()},
+        {"name", currentGoal.getName()},
+        {"met", isActiveGoalMet()}
+    };
 
     // Parameters
     j["params"] = {
@@ -142,7 +217,15 @@ nlohmann::json GameState::toJson() const {
         {"loseCohesion",   pool.getLoseCohesion()},
         {"turnWaste",      pool.getTurnWaste()},
         {"solveDisruption", pool.getSolveDisrupt()},
+        {"develop",        pool.getDevelop()},
+        {"transform",      pool.getTransform()},
         {"totalRemaining", pool.getPoolSize()}
+    };
+
+    j["adapt"] = {
+        {"trackSize", static_cast<int>(adaptTrack.size())},
+        {"cursor", adaptCursor},
+        {"complete", (!adaptTrack.empty() && adaptCursor >= static_cast<int>(adaptTrack.size()))}
     };
 
     // Players
