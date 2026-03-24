@@ -85,7 +85,7 @@ ActionResult EnvisionPhaseHandler::handleShiftPower(const Action& action, GameSt
 }
 
 ActionResult EnvisionPhaseHandler::handleComeTogether(const Action& action, GameState& state) {
-    (void)action; // not used currently
+    (void)action; 
     int currentEnvironment = state.params.getParamAmount(CyberParameter::ENVIRONMENT);
     if (currentEnvironment < 1){
         return ActionResult::invalid("Not enough environment relationship for come_together");

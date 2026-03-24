@@ -3,6 +3,7 @@
 
 #include "core/Params.hpp"
 #include "core/FeedbackPool.hpp"
+#include "core/FeedbackTokenManager.hpp"
 #include "core/Stack.hpp"
 #include "core/Tile.hpp"
 #include "core/Player.hpp"
@@ -14,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <optional>
 
 
 /*
@@ -41,6 +43,7 @@ public:
     // --- Resources ---
     Params       params;
     FeedbackPool pool;
+    FeedbackTokenManager tokenManager;
 
     // ---- Card Resource ----
     CardManager<DisruptionCard> disruptionManager;
@@ -69,6 +72,10 @@ public:
     
     std::optional<DisruptionCard> activeDisruption = std::nullopt;
 
+    // --- Adapt phase runtime state ---
+    std::vector<TokenEffect> adaptTrack;       // feedback tokens in order
+    int                      adaptCursor = 0;  // next token index to resolve
+
     // --- Constructor ---
     GameState();
 
@@ -92,6 +99,10 @@ public:
 
 private:
     TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
+    void syncTokenBagFromManager();
+    void setTokenBag(const std::vector<TokenEffect>& nextBag);
+
+    bool isActiveGoalMet() const;
 };
 
 #endif
