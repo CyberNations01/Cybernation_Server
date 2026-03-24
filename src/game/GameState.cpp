@@ -117,10 +117,10 @@ TokenEffect GameState::mapStackTypeToFeedbackToken(StackType type) const{
             return TokenEffect::TURN_WILD;
         case StackType::WASTE:
             return TokenEffect::LOSE_COHESION;
-        case StackType::DEV_A: // Agora
-            return TokenEffect::SOLVE_DISRUPTION;
-        case StackType::DEV_B:
+        case StackType::DEV_A: // Works
             return TokenEffect::TURN_WASTE;
+        case StackType::DEV_B: // Agora
+            return TokenEffect::SOLVE_DISRUPTION;
         default:
             return TokenEffect::UNKNOWN;
     }
