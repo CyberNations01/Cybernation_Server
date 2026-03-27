@@ -4,6 +4,8 @@ GameRoom::GameRoom()
     : state(), controller() {}
 
 ActionResult GameRoom::receiveAction(const Action& action) {
+    // TODO: We need to add an interactive, parallel role-setup handling.
+    // Keep GameRoom unchanged for now per team constraint.
     return controller.processAction(action, state);
 }
 

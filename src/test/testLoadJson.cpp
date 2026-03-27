@@ -189,6 +189,17 @@ void testLoadGoal()
 }
 void testDraw10AndResolve() {
     GameState state;
+    // Temporary test bootstrap: skip interactive role setup.
+    state.roleSetupComplete = true;
+    const auto& roleDeck = state.roleManager.getDeck();
+    std::cout << "Role cards loaded: " << roleDeck.size() << std::endl;
+    if (roleDeck.size() < static_cast<size_t>(GameState::NUM_PLAYERS)) {
+        std::cout << "[ERROR] role deck size is insufficient for bootstrap" << std::endl;
+        return;
+    }
+    for (int pid = 0; pid < GameState::NUM_PLAYERS; ++pid) {
+        state.playerSelectedRoleId[pid] = roleDeck[pid].getId();
+    }
 
     std::cout << "=== Initial State ===" << std::endl;
     std::cout << "Cohesion: " << state.params.getCohesion() << std::endl;

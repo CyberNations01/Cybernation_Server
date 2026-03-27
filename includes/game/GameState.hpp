@@ -8,11 +8,13 @@
 #include "core/Tile.hpp"
 #include "core/Player.hpp"
 #include "core/DisruptionCard.hpp"
+#include "core/Role.hpp"
 #include "core/GamePhase.hpp"
 #include "core/CardManager.hpp"
 #include "core/DataLoader.hpp"
 #include "nlohmann/json.hpp"
 #include <vector>
+#include <array>
 #include <string>
 #include <optional>
 
@@ -44,6 +46,7 @@ public:
 
     // ---- Card Resource ----
     CardManager<DisruptionCard> disruptionManager;
+    CardManager<Role> roleManager;
     CardManager<Tile> tileManager;
     CardManager<Goal> goalManager;
     
@@ -66,12 +69,18 @@ public:
     int       currentPlayerId   = 0;  // Whose turn it is right now
     bool      gameOver          = false;
     Goal      currentGoal;
+    int       goalTrackDisruptionCount = 0;
     
     std::optional<DisruptionCard> activeDisruption = std::nullopt;
 
     // --- Adapt phase runtime state ---
     std::vector<TokenEffect> adaptTrack;       // feedback tokens in order
     int                      adaptCursor = 0;  // next token index to resolve
+
+    // --- Role draft/setup state (before round 1 starts) ---
+    bool roleSetupComplete = false;
+    std::vector<std::vector<int>> playerRoleOptions; // 2 role ids each player
+    std::array<int, NUM_PLAYERS> playerSelectedRoleId{};
 
     // --- Constructor ---
     GameState();

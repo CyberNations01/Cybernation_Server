@@ -72,6 +72,30 @@ Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
     return card;
 }
 
+template<>
+Role DataLoader::parseJson<Role>(const nlohmann::json& data)
+{
+    Role role;
+    role.setId(data.value("id", -1));
+    role.setName(data.value("name", ""));
+
+    // Backward-compatible field names for transitional data files.
+    role.setAgendaRaw(data.value("agenda_raw", data.value("agenda", "")));
+
+    std::vector<std::string> conditions;
+    if (data.contains("agenda_condition") && data["agenda_condition"].is_array()) {
+        for (const auto& cond : data["agenda_condition"]) {
+            conditions.push_back(cond.get<std::string>());
+        }
+    } else if (data.contains("agenda_ops") && data["agenda_ops"].is_array()) {
+        for (const auto& cond : data["agenda_ops"]) {
+            conditions.push_back(cond.get<std::string>());
+        }
+    }
+    role.setAgendaCondition(conditions);
+    return role;
+}
+
 template <>
 DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 {
@@ -359,6 +383,38 @@ std::vector<Goal> DataLoader::loadGoal(const std::string& filename)
     return goalSet;
 }
 
+std::vector<Role> DataLoader::loadRole(const std::string& filename)
+{
+    std::vector<Role> roleSet;
+    try {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Cannot open: " << filename << std::endl;
+            return roleSet;
+        }
+
+        nlohmann::json jsonData;
+        file >> jsonData;
+
+        if (!jsonData.is_array()) {
+            std::cerr << "JSON must be an array" << std::endl;
+            return roleSet;
+        }
+
+        for (const auto& cardData : jsonData) {
+            try {
+                roleSet.push_back(parseJson<Role>(cardData));
+            } catch (const std::exception& e) {
+                std::cerr << "Error loading role: " << e.what() << std::endl;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to load roles: " << e.what() << std::endl;
+    }
+
+    return roleSet;
+}
+
 template <>
 CardManager<DisruptionCard> DataLoader::loadDeck<DisruptionCard>(const std::string& filename)
 {
@@ -381,4 +437,10 @@ template <>
 CardManager<Goal> DataLoader::loadDeck<Goal>(const std::string& filename)
 {
     return CardManager<Goal>(loadGoal(filename));
+}
+
+template <>
+CardManager<Role> DataLoader::loadDeck<Role>(const std::string& filename)
+{
+    return CardManager<Role>(loadRole(filename));
 }

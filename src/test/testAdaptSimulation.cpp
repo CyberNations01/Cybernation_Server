@@ -75,6 +75,19 @@ int main() {
     GameRoom room;
     std::cout << "=== Adapt Branch Coverage Simulation ===" << std::endl;
 
+    // Temporary test bootstrap: mark role setup complete until
+    // interactive parallel role selection is implemented outside GameRoom.
+    room.getState().roleSetupComplete = true;
+    const auto& roleDeck = room.getState().roleManager.getDeck();
+    if (roleDeck.size() < static_cast<size_t>(GameState::NUM_PLAYERS)) {
+        std::cout << "[FAIL] role deck size is insufficient for tests" << std::endl;
+        return 1;
+    }
+    for (int pid = 0; pid < GameState::NUM_PLAYERS; ++pid) {
+        room.getState().playerSelectedRoleId[pid] = roleDeck[pid].getId();
+    }
+    expectTrue(room.getState().roleSetupComplete, "Role setup marked complete for tests");
+
     // Initialize controller + turn order quickly.
     while (room.getState().currentPhase == GamePhase::ENVISION) {
         Action pass = makeAction(room, "pass");
@@ -232,9 +245,32 @@ int main() {
     nlohmann::json finishPayload = nlohmann::json::parse(finishOneRes.message.payload);
     expectTrue(finishPayload.value("autoCommit", false), "final resolve triggers auto commit");
     expectTrue(finishPayload.contains("commit"), "auto commit payload is included");
+    expectTrue(finishPayload["commit"].contains("endingName"), "commit payload includes endingName");
+    expectTrue(finishPayload["commit"].value("endingName", "") != "Defeat",
+               "non-final-round commit is not Defeat");
     Action commitOk = makeAction(room, "commit");
     ActionResult commitOkRes = dispatch(room, commitOk, "commit_success");
     expectTrue(!commitOkRes.ok(), "manual commit is rejected after auto commit");
+
+    // --- 9) defeat only applies on final round ---
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    room.getState().currentRound = room.getState().maxRounds;
+    room.getState().playerSelectedRoleId[0] = 12; // THE DIPLOMAT: Co GE 20
+    room.getState().params.setCohesion(10); // Force agenda unmet
+    expectTrue(putToken(room, 0, "final_round_defeat_put").ok(), "final-round defeat setup put succeeds");
+    ActionResult finalRoundRes = resolveToken(room, "final_round_defeat_resolve");
+    expectTrue(finalRoundRes.ok(), "final-round defeat resolve succeeds");
+    nlohmann::json finalRoundPayload = nlohmann::json::parse(finalRoundRes.message.payload);
+    bool p0Defeat = false;
+    for (const auto& row : finalRoundPayload["commit"]["endingsByPlayer"]) {
+        if (row.value("playerId", -1) == 0 && row.value("endingName", "") == "Defeat") {
+            p0Defeat = true;
+            break;
+        }
+    }
+    expectTrue(p0Defeat, "Defeat is produced for player 0 on final round when goal+agenda are unmet");
+    expectTrue(finalRoundPayload["commit"].value("gameOver", false),
+               "Defeat on final round sets gameOver");
 
     std::cout << "=== Adapt Branch Coverage Finished ===" << std::endl;
     std::cout << "Total failures: " << gFailures << std::endl;

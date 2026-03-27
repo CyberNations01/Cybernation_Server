@@ -2,18 +2,6 @@
 #include <map>
 
 namespace {
-bool compareWithOp(int lhs, comparator op, int rhs) {
-    switch (op) {
-        case comparator::GT: return lhs > rhs;
-        case comparator::GE: return lhs >= rhs;
-        case comparator::EQ: return lhs == rhs;
-        case comparator::LE: return lhs <= rhs;
-        case comparator::LT: return lhs < rhs;
-        case comparator::NE: return lhs != rhs;
-        default: return false;
-    }
-}
-
 bool isPosMatch(int tilePos, const std::optional<std::string>& pos) {
     if (!pos.has_value() || pos->empty()) return true;
     if (*pos == "inner") return tilePos == 0;
@@ -31,12 +19,17 @@ GameState::GameState() {
 
     DataLoader loader;
     disruptionManager = CardManager<DisruptionCard>(loader.loadDisrupt("./data/disruption.json"));
+    roleManager = loader.loadDeck<Role>("./data/role.json");
+    roleManager.shuffle();
     board = loader.loadTile("./data/layout.json");
     tileManager = CardManager<Tile>(board);
     goalManager = loader.loadDeck<Goal>("./data/goal.json");
     if (!goalManager.isDeckEmpty()) {
         currentGoal = goalManager.draw();
     }
+    playerRoleOptions.assign(NUM_PLAYERS, std::vector<int>{});
+    playerSelectedRoleId.fill(-1);
+    roleSetupComplete = false;
 
     CardManager<Stack> allStackManager = loader.loadDeck<Stack>("./data/stack.json");
     std::vector<std::vector<Stack>> stackVector(4, std::vector<Stack>());
@@ -170,7 +163,7 @@ bool GameState::isActiveGoalMet() const {
             return false;
         }
 
-        if (!compareWithOp(lhs, cond.op, cond.num)) return false;
+        if (!compareByComparator(lhs, cond.op, cond.num)) return false;
     }
     return true;
 }
@@ -192,6 +185,29 @@ nlohmann::json GameState::toJson() const {
         {"name", currentGoal.getName()},
         {"met", isActiveGoalMet()}
     };
+    j["roleSetup"] = {
+        {"complete", roleSetupComplete},
+        {"currentChooserId", roleSetupComplete ? -1 : currentPlayerId}
+    };
+    j["roleSetup"]["players"] = nlohmann::json::array();
+    for (int i = 0; i < NUM_PLAYERS; ++i) {
+        nlohmann::json row = {
+            {"playerId", i},
+            {"selectedRoleId", playerSelectedRoleId[i]},
+            {"options", playerRoleOptions[i]}
+        };
+        const Role* selectedRole = nullptr;
+        for (const auto& role : roleManager.getDeck()) {
+            if (role.getId() == playerSelectedRoleId[i]) {
+                selectedRole = &role;
+                break;
+            }
+        }
+        if (selectedRole != nullptr) {
+            row["selectedRoleName"] = selectedRole->getName();
+        }
+        j["roleSetup"]["players"].push_back(row);
+    }
 
     // Parameters
     j["params"] = {

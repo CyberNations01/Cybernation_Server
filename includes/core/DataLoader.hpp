@@ -5,6 +5,7 @@
 #include "DisruptionCard.hpp"
 #include "Tile.hpp"
 #include "Stack.hpp"
+#include "Role.hpp"
 #include "Types.hpp"
 #include "Goal.hpp"
 #include <fstream>
@@ -23,6 +24,7 @@ class DataLoader {
         static std::vector<Stack>              loadStack(const std::string & filename);
         static std::vector<Tile>               loadTile(const std::string & filename);
         static std::vector<Goal>               loadGoal(const std::string& filename);
+        static std::vector<Role>               loadRole(const std::string& filename);
 };
 
 
@@ -37,6 +39,9 @@ CardManager<Tile> DataLoader::loadDeck<Tile>(const std::string& filename);
 
 template <>
 CardManager<Goal> DataLoader::loadDeck<Goal>(const std::string& filename);
+
+template <>
+CardManager<Role> DataLoader::loadDeck<Role>(const std::string& filename);
 
 
 
@@ -53,6 +58,9 @@ Tile DataLoader::parseJson<Tile>(const nlohmann::json& data);
 
 template<>
 Goal DataLoader::parseJson<Goal>(const nlohmann::json& data);
+
+template<>
+Role DataLoader::parseJson<Role>(const nlohmann::json& data);
 
 
 

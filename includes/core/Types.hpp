@@ -249,4 +249,17 @@ inline std::string comparatorToStr(const comparator& op)
     }
 }
 
+inline bool compareByComparator(int lhs, comparator op, int rhs)
+{
+    switch (op) {
+        case comparator::GT: return lhs > rhs;
+        case comparator::GE: return lhs >= rhs;
+        case comparator::EQ: return lhs == rhs;
+        case comparator::LE: return lhs <= rhs;
+        case comparator::LT: return lhs < rhs;
+        case comparator::NE: return lhs != rhs;
+        default:             return false;
+    }
+}
+
 #endif
