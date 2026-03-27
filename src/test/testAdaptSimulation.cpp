@@ -47,6 +47,28 @@ void forceAdaptState(GameRoom& room, const std::vector<TokenEffect>& track) {
     state.tokenManager.clearTrack();
     state.setTokenBag(track);
 }
+
+ActionResult putToken(GameRoom& room, int position, const std::string& label) {
+    Action a = makeAction(room, "put_feedback_token");
+    a.params["position"] = std::to_string(position);
+    return dispatch(room, a, label);
+}
+
+ActionResult resolveToken(GameRoom& room,
+                          const std::string& label,
+                          const std::unordered_map<std::string, std::string>& extraParams = {}) {
+    Action a = makeAction(room, "resolve_feedback_token");
+    for (const auto& [k, v] : extraParams) {
+        a.params[k] = v;
+    }
+    return dispatch(room, a, label);
+}
+
+ActionResult cancelToken(GameRoom& room, int position, const std::string& label) {
+    Action a = makeAction(room, "cancel_feedback_token");
+    a.params["position"] = std::to_string(position);
+    return dispatch(room, a, label);
+}
 }
 
 int main() {
@@ -72,71 +94,101 @@ int main() {
     expectTrue(snap["gameState"]["phase"] == static_cast<int>(GamePhase::ADOPT),
                "snapshot gameState reports ADOPT");
 
-    // --- 2) resolve_feedback validation branches ---
+    // --- 2) put_feedback_token validation branches ---
     forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action missingParam = makeAction(room, "resolve_feedback");
-    ActionResult missingParamRes = dispatch(room, missingParam, "resolve_missing_params");
-    expectTrue(!missingParamRes.ok(), "resolve_feedback missing params fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action badTarget = makeAction(room, "resolve_feedback");
-    badTarget.params["decision"] = "allow";
-    badTarget.params["target_tile"] = "abc";
-    ActionResult badTargetRes = dispatch(room, badTarget, "resolve_bad_target_type");
-    expectTrue(!badTargetRes.ok(), "resolve_feedback invalid target type fails");
+    Action missingParam = makeAction(room, "put_feedback_token");
+    ActionResult missingParamRes = dispatch(room, missingParam, "put_missing_params");
+    expectTrue(!missingParamRes.ok(), "put_feedback_token missing position fails");
 
     forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action wrongRing = makeAction(room, "resolve_feedback");
-    wrongRing.params["decision"] = "allow";
-    wrongRing.params["target_tile"] = "1";
-    ActionResult wrongRingRes = dispatch(room, wrongRing, "resolve_wrong_ring");
-    expectTrue(!wrongRingRes.ok(), "resolve_feedback wrong ring fails");
+    Action badPosition = makeAction(room, "put_feedback_token");
+    badPosition.params["position"] = "abc";
+    ActionResult badPositionRes = dispatch(room, badPosition, "put_bad_position_type");
+    expectTrue(!badPositionRes.ok(), "put_feedback_token non-integer position fails");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD, TokenEffect::TURN_WILD, TokenEffect::TURN_WILD});
-    Action occupyInner = makeAction(room, "resolve_feedback");
-    occupyInner.params["decision"] = "allow";
-    occupyInner.params["target_tile"] = "0";
-    ActionResult occupyInnerRes = dispatch(room, occupyInner, "resolve_occupied_tile_inner");
-    expectTrue(occupyInnerRes.ok(), "inner resolve succeeds before occupied check");
-    Action occupyMiddleFirst = makeAction(room, "resolve_feedback");
-    occupyMiddleFirst.params["decision"] = "allow";
-    occupyMiddleFirst.params["target_tile"] = "1";
-    ActionResult occupyMiddleFirstRes = dispatch(room, occupyMiddleFirst, "resolve_occupied_tile_middle_first");
-    expectTrue(occupyMiddleFirstRes.ok(), "first middle resolve succeeds");
-    Action occupied = makeAction(room, "resolve_feedback");
-    occupied.params["decision"] = "allow";
-    occupied.params["target_tile"] = "1";
-    ActionResult occupiedRes = dispatch(room, occupied, "resolve_occupied_tile_middle_second");
-    expectTrue(!occupiedRes.ok(), "resolve_feedback occupied tile fails");
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    Action wrongRing = makeAction(room, "put_feedback_token");
+    wrongRing.params["position"] = "1";
+    ActionResult wrongRingRes = dispatch(room, wrongRing, "put_wrong_ring");
+    expectTrue(!wrongRingRes.ok(), "put_feedback_token wrong ring fails");
 
+    // --- 3) split-flow behavior: put keeps turn, resolve advances turn ---
+    forceAdaptState(room, {TokenEffect::TURN_WILD, TokenEffect::TURN_WILD});
+    int actorBeforePut = currentActor(room);
+    ActionResult putRes = putToken(room, 0, "split_flow_put");
+    expectTrue(putRes.ok(), "put_feedback_token succeeds");
+    expectTrue(currentActor(room) == actorBeforePut, "after put_feedback_token turn does not advance");
+
+    ActionResult resolveRes = resolveToken(room, "split_flow_resolve");
+    expectTrue(resolveRes.ok(), "resolve_feedback_token succeeds");
+    expectTrue(currentActor(room) != actorBeforePut, "after resolve_feedback_token turn advances");
+
+    // --- 4) pending lifecycle validation ---
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    ActionResult pendingPut = putToken(room, 0, "pending_put");
+    expectTrue(pendingPut.ok(), "pending setup put succeeds");
+    ActionResult secondPut = putToken(room, 0, "pending_second_put");
+    expectTrue(!secondPut.ok(), "cannot put twice before resolve/cancel");
+    Action earlyCommit = makeAction(room, "commit");
+    ActionResult earlyCommitRes = dispatch(room, earlyCommit, "pending_commit_blocked");
+    expectTrue(!earlyCommitRes.ok(), "commit blocked while pending token exists");
+    ActionResult pendingCleanupResolve = resolveToken(room, "pending_cleanup_resolve");
+    expectTrue(pendingCleanupResolve.ok(), "pending scenario cleanup resolve succeeds");
+
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    ActionResult resolveWithoutPut = resolveToken(room, "resolve_without_put");
+    expectTrue(!resolveWithoutPut.ok(), "resolve_feedback_token fails without pending put");
+
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    ActionResult cancelWithoutPut = cancelToken(room, 0, "cancel_without_put");
+    expectTrue(!cancelWithoutPut.ok(), "cancel_feedback_token fails without pending put");
+
+    // --- 5) cancellation branches ---
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     room.getState().params.setCybernationLevel(0);
-    Action cancelNoCy = makeAction(room, "resolve_feedback");
-    cancelNoCy.params["decision"] = "cancel";
-    cancelNoCy.params["target_tile"] = "0";
-    ActionResult cancelNoCyRes = dispatch(room, cancelNoCy, "resolve_cancel_insufficient_cy");
-    expectTrue(!cancelNoCyRes.ok(), "cancel fails when cybernation is 0");
+    ActionResult putForCancelNoCy = putToken(room, 0, "cancel_no_cy_put");
+    expectTrue(putForCancelNoCy.ok(), "cancel path setup put succeeds");
+    ActionResult cancelNoCyRes = cancelToken(room, 0, "cancel_no_cy");
+    expectTrue(!cancelNoCyRes.ok(), "cancel_feedback_token fails when cybernation is 0");
+    ActionResult cancelNoCyCleanup = resolveToken(room, "cancel_no_cy_cleanup_resolve");
+    expectTrue(cancelNoCyCleanup.ok(), "cancel insufficient scenario cleanup resolve succeeds");
 
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     room.getState().params.setCybernationLevel(2);
-    Action cancelOk = makeAction(room, "resolve_feedback");
-    cancelOk.params["decision"] = "cancel";
-    cancelOk.params["target_tile"] = "0";
-    ActionResult cancelOkRes = dispatch(room, cancelOk, "resolve_cancel_ok");
-    expectTrue(cancelOkRes.ok(), "cancel succeeds with enough cybernation");
+    ActionResult putForCancelMismatch = putToken(room, 0, "cancel_mismatch_put");
+    expectTrue(putForCancelMismatch.ok(), "cancel mismatch setup put succeeds");
+    ActionResult cancelMismatchRes = cancelToken(room, 1, "cancel_position_mismatch");
+    expectTrue(!cancelMismatchRes.ok(), "cancel_feedback_token fails on position mismatch");
+    ActionResult cancelMismatchCleanup = cancelToken(room, 0, "cancel_mismatch_cleanup");
+    expectTrue(cancelMismatchCleanup.ok(), "cancel mismatch scenario cleanup succeeds");
+
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    room.getState().params.setCybernationLevel(2);
+    ActionResult putForCancelOk = putToken(room, 0, "cancel_ok_put");
+    expectTrue(putForCancelOk.ok(), "cancel success setup put succeeds");
+    ActionResult cancelOkRes = cancelToken(room, 0, "cancel_ok");
+    expectTrue(cancelOkRes.ok(), "cancel_feedback_token succeeds with enough cybernation");
     expectTrue(room.getState().params.getCybernationLevel() == 1, "cancel consumes 1 cybernation");
 
-    // --- 3) Effect branches: DEVELOP / TRANSFORM / UNKNOWN ---
+    // --- 6) occupancy branch after resolved placement ---
+    forceAdaptState(room, {TokenEffect::TURN_WILD, TokenEffect::TURN_WILD, TokenEffect::TURN_WILD});
+    expectTrue(putToken(room, 0, "occupy_inner_put").ok(), "inner put succeeds");
+    expectTrue(resolveToken(room, "occupy_inner_resolve").ok(), "inner resolve succeeds");
+    expectTrue(putToken(room, 1, "occupy_middle_first_put").ok(), "first middle put succeeds");
+    expectTrue(resolveToken(room, "occupy_middle_first_resolve").ok(), "first middle resolve succeeds");
+    ActionResult middleOccupiedPut = putToken(room, 1, "occupy_middle_second_put");
+    expectTrue(!middleOccupiedPut.ok(), "cannot place second token on occupied middle tile");
+
+    // --- 7) effect branches: DEVELOP / TRANSFORM / UNKNOWN / SOLVE_DISRUPTION ---
     forceAdaptState(room, {TokenEffect::DEVELOP_STACK});
     room.getState().getTile(0)->removeOverlay();
-    Action develop = makeAction(room, "resolve_feedback");
-    develop.params["decision"] = "allow";
-    develop.params["target_tile"] = "0";
-    develop.params["develop_to"] = "DEV_B";
-    ActionResult developRes = dispatch(room, develop, "resolve_develop_dev_b");
-    expectTrue(developRes.ok(), "DEVELOP_STACK allow succeeds");
-    expectTrue(room.getState().getTile(0)->hasOverlay(), "DEVELOP_STACK creates overlay");
-    expectTrue(room.getState().getTile(0)->getOverlay().getType() == StackType::DEV_B,
+    expectTrue(putToken(room, 0, "effect_develop_put").ok(), "DEVELOP setup put succeeds");
+    ActionResult developRes = resolveToken(room, "effect_develop_resolve", {{"develop_to", "DEV_B"}});
+    expectTrue(developRes.ok(), "DEVELOP_STACK resolve succeeds");
+    const bool developHasOverlay = room.getState().getTile(0)->hasOverlay();
+    expectTrue(developHasOverlay, "DEVELOP_STACK creates overlay");
+    expectTrue(developHasOverlay &&
+               room.getState().getTile(0)->getOverlay().getType() == StackType::DEV_B,
                "DEVELOP_STACK chooses DEV_B");
 
     forceAdaptState(room, {TokenEffect::TRANSFORM_STACK});
@@ -145,191 +197,44 @@ int main() {
         overlay.setType(StackType::DEV_A);
         room.getState().getTile(0)->setOverlay(overlay);
     }
-    Action transform = makeAction(room, "resolve_feedback");
-    transform.params["decision"] = "allow";
-    transform.params["target_tile"] = "0";
-    ActionResult transformRes = dispatch(room, transform, "resolve_transform");
-    expectTrue(transformRes.ok(), "TRANSFORM_STACK allow succeeds");
-    expectTrue(room.getState().getTile(0)->hasOverlay(), "TRANSFORM keeps overlay");
-    expectTrue(room.getState().getTile(0)->getOverlay().getType() == StackType::DEV_B,
+    expectTrue(putToken(room, 0, "effect_transform_put").ok(), "TRANSFORM setup put succeeds");
+    ActionResult transformRes = resolveToken(room, "effect_transform_resolve");
+    expectTrue(transformRes.ok(), "TRANSFORM_STACK resolve succeeds");
+    const bool transformHasOverlay = room.getState().getTile(0)->hasOverlay();
+    expectTrue(transformHasOverlay, "TRANSFORM keeps overlay");
+    expectTrue(transformHasOverlay &&
+               room.getState().getTile(0)->getOverlay().getType() == StackType::DEV_B,
                "TRANSFORM toggles DEV_A -> DEV_B");
 
     forceAdaptState(room, {TokenEffect::UNKNOWN});
-    Action unknown = makeAction(room, "resolve_feedback");
-    unknown.params["decision"] = "allow";
-    unknown.params["target_tile"] = "0";
-    ActionResult unknownRes = dispatch(room, unknown, "resolve_unknown_effect");
-    expectTrue(unknownRes.ok(), "UNKNOWN effect branch returns success");
+    expectTrue(putToken(room, 0, "effect_unknown_put").ok(), "UNKNOWN setup put succeeds");
+    ActionResult unknownRes = resolveToken(room, "effect_unknown_resolve");
+    expectTrue(unknownRes.ok(), "UNKNOWN effect resolve returns success");
 
+    // 方案A: SOLVE_DISRUPTION 保留触发抽卡行为
     forceAdaptState(room, {TokenEffect::SOLVE_DISRUPTION});
     room.getState().activeDisruption = std::nullopt;
-    Action solveDisruption = makeAction(room, "resolve_feedback");
-    solveDisruption.params["decision"] = "allow";
-    solveDisruption.params["target_tile"] = "0";
-    ActionResult solveDisruptionRes = dispatch(room, solveDisruption, "resolve_solve_disruption");
-    expectTrue(solveDisruptionRes.ok(), "SOLVE_DISRUPTION draws disruption via GameUtility");
+    expectTrue(putToken(room, 0, "effect_solve_disruption_put").ok(), "SOLVE_DISRUPTION setup put succeeds");
+    ActionResult solveDisruptionRes = resolveToken(room, "effect_solve_disruption_resolve");
+    expectTrue(solveDisruptionRes.ok(), "SOLVE_DISRUPTION resolves and triggers draw");
     expectTrue(room.getState().activeDisruption.has_value(), "SOLVE_DISRUPTION creates active disruption");
 
-    // --- 4) cancel_disruption_effect branches ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelMissingName = makeAction(room, "cancel_disruption_effect");
-    ActionResult cancelMissingRes = dispatch(room, cancelMissingName, "cancel_disruption_missing_name");
-    expectTrue(!cancelMissingRes.ok(), "cancel_disruption_effect requires disruption_name");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelUnknown = makeAction(room, "cancel_disruption_effect");
-    cancelUnknown.params["disruption_name"] = "NO_SUCH_CARD";
-    ActionResult cancelUnknownRes = dispatch(room, cancelUnknown, "cancel_disruption_unknown_name");
-    expectTrue(!cancelUnknownRes.ok(), "cancel_disruption_effect unknown name fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelNotAllowed = makeAction(room, "cancel_disruption_effect");
-    cancelNotAllowed.params["disruption_name"] = "COMMUNITY_LEADERS_1";
-    ActionResult cancelNotAllowedRes = dispatch(room, cancelNotAllowed, "cancel_disruption_not_cancellable");
-    expectTrue(!cancelNotAllowedRes.ok(), "cancel_disruption_effect blocks non-cancellable card");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelNoCost = makeAction(room, "cancel_disruption_effect");
-    cancelNoCost.params["disruption_name"] = "HURRICANE_1";
-    ActionResult cancelNoCostRes = dispatch(room, cancelNoCost, "cancel_disruption_no_cost");
-    expectTrue(cancelNoCostRes.ok(), "cancel_disruption_effect uses GameUtility cancel path");
-    expectTrue(cancelNoCostRes.message.type == "disruption_effect_cancelled",
-               "cancel_disruption_effect returns restored message type");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelBadTimes = makeAction(room, "cancel_disruption_effect");
-    cancelBadTimes.params["disruption_name"] = "HURRICANE_1";
-    cancelBadTimes.params["times"] = "abc";
-    ActionResult cancelBadTimesRes = dispatch(room, cancelBadTimes, "cancel_disruption_bad_times");
-    expectTrue(!cancelBadTimesRes.ok(), "cancel_disruption invalid times fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelTimesZero = makeAction(room, "cancel_disruption_effect");
-    cancelTimesZero.params["disruption_name"] = "HURRICANE_1";
-    cancelTimesZero.params["times"] = "0";
-    ActionResult cancelTimesZeroRes = dispatch(room, cancelTimesZero, "cancel_disruption_times_zero");
-    expectTrue(!cancelTimesZeroRes.ok(), "cancel_disruption times <= 0 fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(0);
-    Action cancelInsufficient = makeAction(room, "cancel_disruption_effect");
-    cancelInsufficient.params["disruption_name"] = "HURRICANE_1";
-    ActionResult cancelInsufficientRes = dispatch(room, cancelInsufficient, "cancel_disruption_insufficient_resource");
-    expectTrue(cancelInsufficientRes.ok(), "GameUtility cancel path currently does not hard-fail low resource");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(2);
-    Action cancelSuccess = makeAction(room, "cancel_disruption_effect");
-    cancelSuccess.params["disruption_name"] = "HURRICANE_1";
-    ActionResult cancelSuccessRes = dispatch(room, cancelSuccess, "cancel_disruption_success");
-    expectTrue(cancelSuccessRes.ok(), "cancel_disruption success branch works");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action applySuccess = makeAction(room, "cancel_disruption_effect");
-    applySuccess.params["disruption_name"] = "HURRICANE_1";
-    applySuccess.params["decision"] = "apply";
-    ActionResult applySuccessRes = dispatch(room, applySuccess, "apply_disruption_success");
-    expectTrue(applySuccessRes.ok(), "disruption apply path works via GameUtility");
-    expectTrue(!room.getState().activeDisruption.has_value(), "apply path clears active disruption");
-
-    // --- 5) trade branches ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeMissingSource = makeAction(room, "trade");
-    ActionResult tradeMissingSourceRes = dispatch(room, tradeMissingSource, "trade_missing_source");
-    expectTrue(!tradeMissingSourceRes.ok(), "trade missing source fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeWrongSource = makeAction(room, "trade");
-    tradeWrongSource.params["source"] = "manual";
-    ActionResult tradeWrongSourceRes = dispatch(room, tradeWrongSource, "trade_wrong_source");
-    expectTrue(!tradeWrongSourceRes.ok(), "trade wrong source fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeMissingParams = makeAction(room, "trade");
-    tradeMissingParams.params["source"] = "disruption_cancel";
-    ActionResult tradeMissingParamsRes = dispatch(room, tradeMissingParams, "trade_missing_params");
-    expectTrue(!tradeMissingParamsRes.ok(), "trade missing params fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeBadAmount = makeAction(room, "trade");
-    tradeBadAmount.params["source"] = "disruption_cancel";
-    tradeBadAmount.params["give_param"] = "CY";
-    tradeBadAmount.params["receive_param"] = "TECH";
-    tradeBadAmount.params["give_amount"] = "x";
-    ActionResult tradeBadAmountRes = dispatch(room, tradeBadAmount, "trade_bad_amount");
-    expectTrue(!tradeBadAmountRes.ok(), "trade bad give_amount fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeNonPositive = makeAction(room, "trade");
-    tradeNonPositive.params["source"] = "disruption_cancel";
-    tradeNonPositive.params["give_param"] = "CY";
-    tradeNonPositive.params["receive_param"] = "TECH";
-    tradeNonPositive.params["give_amount"] = "0";
-    ActionResult tradeNonPositiveRes = dispatch(room, tradeNonPositive, "trade_non_positive");
-    expectTrue(!tradeNonPositiveRes.ok(), "trade non-positive amount fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeUnknownParam = makeAction(room, "trade");
-    tradeUnknownParam.params["source"] = "disruption_cancel";
-    tradeUnknownParam.params["give_param"] = "BAD_PARAM";
-    tradeUnknownParam.params["receive_param"] = "TECH";
-    ActionResult tradeUnknownParamRes = dispatch(room, tradeUnknownParam, "trade_unknown_param");
-    expectTrue(!tradeUnknownParamRes.ok(), "trade unknown param fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeSameParam = makeAction(room, "trade");
-    tradeSameParam.params["source"] = "disruption_cancel";
-    tradeSameParam.params["give_param"] = "CY";
-    tradeSameParam.params["receive_param"] = "CY";
-    ActionResult tradeSameParamRes = dispatch(room, tradeSameParam, "trade_same_param");
-    expectTrue(!tradeSameParamRes.ok(), "trade same param fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeCohesion = makeAction(room, "trade");
-    tradeCohesion.params["source"] = "disruption_cancel";
-    tradeCohesion.params["give_param"] = "CO";
-    tradeCohesion.params["receive_param"] = "TECH";
-    ActionResult tradeCohesionRes = dispatch(room, tradeCohesion, "trade_cohesion_blocked");
-    expectTrue(!tradeCohesionRes.ok(), "trade cohesion blocked");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(0);
-    Action tradeInsufficient = makeAction(room, "trade");
-    tradeInsufficient.params["source"] = "disruption_cancel";
-    tradeInsufficient.params["give_param"] = "CY";
-    tradeInsufficient.params["receive_param"] = "TECH";
-    tradeInsufficient.params["give_amount"] = "1";
-    ActionResult tradeInsufficientRes = dispatch(room, tradeInsufficient, "trade_insufficient");
-    expectTrue(!tradeInsufficientRes.ok(), "trade insufficient resource fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(2);
-    int techBefore = room.getState().params.getTechnology();
-    Action tradeSuccess = makeAction(room, "trade");
-    tradeSuccess.params["source"] = "disruption_cancel";
-    tradeSuccess.params["give_param"] = "CY";
-    tradeSuccess.params["receive_param"] = "TECH";
-    tradeSuccess.params["give_amount"] = "1";
-    tradeSuccess.params["receive_amount"] = "1";
-    ActionResult tradeSuccessRes = dispatch(room, tradeSuccess, "trade_success");
-    expectTrue(tradeSuccessRes.ok(), "trade success branch works");
-    expectTrue(room.getState().params.getTechnology() == techBefore + 1, "trade increases receive resource");
-
-    // --- 6) commit branches ---
+    // --- 8) auto-commit branches ---
     forceAdaptState(room, {TokenEffect::TURN_WILD});
     Action commitEarly = makeAction(room, "commit");
     ActionResult commitEarlyRes = dispatch(room, commitEarly, "commit_before_complete");
-    expectTrue(!commitEarlyRes.ok(), "commit before completion fails");
+    expectTrue(!commitEarlyRes.ok(), "manual commit is rejected before completion");
 
     forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action finishOne = makeAction(room, "resolve_feedback");
-    finishOne.params["decision"] = "allow";
-    finishOne.params["target_tile"] = "0";
-    ActionResult finishOneRes = dispatch(room, finishOne, "commit_setup_resolve");
+    expectTrue(putToken(room, 0, "commit_setup_put").ok(), "commit setup put succeeds");
+    ActionResult finishOneRes = resolveToken(room, "commit_setup_resolve");
     expectTrue(finishOneRes.ok(), "commit setup resolve succeeds");
+    nlohmann::json finishPayload = nlohmann::json::parse(finishOneRes.message.payload);
+    expectTrue(finishPayload.value("autoCommit", false), "final resolve triggers auto commit");
+    expectTrue(finishPayload.contains("commit"), "auto commit payload is included");
     Action commitOk = makeAction(room, "commit");
     ActionResult commitOkRes = dispatch(room, commitOk, "commit_success");
-    expectTrue(commitOkRes.ok(), "commit success branch works");
+    expectTrue(!commitOkRes.ok(), "manual commit is rejected after auto commit");
 
     std::cout << "=== Adapt Branch Coverage Finished ===" << std::endl;
     std::cout << "Total failures: " << gFailures << std::endl;

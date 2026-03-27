@@ -32,6 +32,10 @@ struct AdaptRuntimeState {
     std::vector<int> placedOn;
     std::vector<bool> cancelled;
     std::vector<bool> tileOccupied;
+    bool pendingFeedback = false;
+    int pendingTile = -1;
+    int pendingPlayerId = -1;
+    int pendingCursor = -1;
 };
 
 std::unordered_map<const GameState*, AdaptRuntimeState> gAdaptRuntimeByState;
@@ -41,19 +45,94 @@ void resetRuntimeFromTrack(AdaptRuntimeState& runtime, const std::vector<TokenEf
     runtime.placedOn.assign(track.size(), -1);
     runtime.cancelled.assign(track.size(), false);
     runtime.tileOccupied.assign(GameState::NUM_TILE, false);
+    runtime.pendingFeedback = false;
+    runtime.pendingTile = -1;
+    runtime.pendingPlayerId = -1;
+    runtime.pendingCursor = -1;
 }
 
 AdaptRuntimeState& runtimeFor(GameState& state) {
     AdaptRuntimeState& runtime = gAdaptRuntimeByState[&state];
     if (runtime.trackSnapshot != state.adaptTrack) {
         resetRuntimeFromTrack(runtime, state.adaptTrack);
-    } else if (state.adaptCursor == 0 && !state.adaptTrack.empty()) {
-        // A new Adapt sequence may be injected by tests or setup logic.
-        resetRuntimeFromTrack(runtime, state.adaptTrack);
     } else if (runtime.tileOccupied.size() != static_cast<size_t>(GameState::NUM_TILE)) {
         runtime.tileOccupied.assign(GameState::NUM_TILE, false);
+    } else if (state.adaptCursor == 0 && !state.adaptTrack.empty()) {
+        bool hasStaleProgress = false;
+        for (int pos : runtime.placedOn) {
+            if (pos >= 0) { hasStaleProgress = true; break; }
+        }
+        if (!hasStaleProgress) {
+            for (bool c : runtime.cancelled) {
+                if (c) { hasStaleProgress = true; break; }
+            }
+        }
+        if (!hasStaleProgress) {
+            for (bool occ : runtime.tileOccupied) {
+                if (occ) { hasStaleProgress = true; break; }
+            }
+        }
+        if (hasStaleProgress && !runtime.pendingFeedback) {
+            resetRuntimeFromTrack(runtime, state.adaptTrack);
+        }
     }
     return runtime;
+}
+
+bool parsePositionParam(const Action& action, int& outPos) {
+    auto it = action.params.find("position");
+    if (it == action.params.end()) return false;
+    try {
+        outPos = std::stoi(it->second);
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+nlohmann::json finalizeAdaptCommit(GameState& state, AdaptRuntimeState& runtime) {
+    std::array<bool, GameState::NUM_TILE> returnable{};
+    returnable.fill(false);
+    returnable[0] = true;
+    for (int t = 7; t <= 10; ++t) returnable[t] = true;
+
+    std::vector<TokenEffect> nextBag;
+    int returnedToBag = 0;
+    int discarded = 0;
+    for (int i = 0; i < static_cast<int>(state.adaptTrack.size()); ++i) {
+        const int tilePos = (i < static_cast<int>(runtime.placedOn.size())) ? runtime.placedOn[i] : -1;
+        const bool cancelled = (i < static_cast<int>(runtime.cancelled.size())) ? runtime.cancelled[i] : true;
+        if (tilePos < 0 || tilePos >= GameState::NUM_TILE) continue;
+
+        if (!cancelled && returnable[tilePos]) {
+            nextBag.push_back(state.adaptTrack[i]);
+            ++returnedToBag;
+        } else {
+            state.pool.putBack(state.adaptTrack[i]);
+            ++discarded;
+        }
+    }
+    state.setTokenBag(nextBag);
+
+    const bool goalMet = state.isActiveGoalMet();
+    const bool turnLimitReached = false;
+    if (goalMet) {
+        state.gameOver = true;
+    }
+
+    nlohmann::json payload = {
+        {"returnedToBag", returnedToBag},
+        {"discardedToReserve", discarded},
+        {"bagSize", static_cast<int>(state.tokenBag.size())},
+        {"goalMet", goalMet},
+        {"turnLimitReached", turnLimitReached},
+        {"gameOver", state.gameOver},
+        {"nextAction", state.gameOver ? "END_GAME" : "START_NEW_TURN"},
+        {"outcomeResolution", "TODO_ROLE_AGENDA_NOT_ENABLED"}
+    };
+
+    resetRuntimeFromTrack(runtime, std::vector<TokenEffect>{});
+    return payload;
 }
 
 }
@@ -72,16 +151,15 @@ ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
         return ActionResult::success(ActionMessage("status", "Player passed"));
     }
 
-    if (action.type == "resolve_feedback") {
-        return handleResolveFeedback(action, state);
+    if (action.type == "put_feedback_token") {
+        return handlePutFeedbackToken(action, state);
     }
-    if (action.type == "cancel_disruption_effect") {
-        return handleCancelDisruptionEffect(action, state);
+    if (action.type == "resolve_feedback_token") {
+        return handleResolveFeedbackToken(action, state);
     }
-    if (action.type == "trade") {
-        return handleTrade(action, state);
+    if (action.type == "cancel_feedback_token") {
+        return handleCancelFeedbackToken(action, state);
     }
-
     if (action.type == "commit") {
         return handleCommit(action, state);
     }
@@ -126,85 +204,90 @@ bool AdoptPhaseHandler::isAdaptTileAvailable(GameState& state, int tilePos) cons
     return !runtime.tileOccupied[tilePos];
 }
 
-const DisruptionCard* AdoptPhaseHandler::findDisruptionCardByName(const GameState& state, const std::string& name) const {
-    for (const auto& card : state.disruptionManager.getDeck()) {
-        if (card.getName() == name) return &card;
-    }
-    for (const auto& card : state.disruptionManager.getDiscard()) {
-        if (card.getName() == name) return &card;
-    }
-    if (state.activeDisruption.has_value() && state.activeDisruption->getName() == name) {
-        return &(*state.activeDisruption);
-    }
-    return nullptr;
-}
-
-ActionResult AdoptPhaseHandler::handleResolveFeedback(const Action& action, GameState& state) {
+ActionResult AdoptPhaseHandler::handlePutFeedbackToken(const Action& action, GameState& state) {
     if (!ensureAdaptTrackInitialized(state)) {
         return fail(ActionStatus::UNKNOWN_ERROR, "Adapt track could not be initialized");
     }
-
     if (isAdaptComplete(state)) {
-        return ActionResult::success(ActionMessage("status", "All Adapt feedback tokens were already resolved"));
+        return fail(ActionStatus::INVALID_ACTION, "All Adapt feedback tokens were already processed");
     }
 
-    auto tileIt = action.params.find("target_tile");
-    auto decisionIt = action.params.find("decision");
-    if (tileIt == action.params.end() || decisionIt == action.params.end()) {
-        return fail(ActionStatus::INVALID_ACTION, "resolve_feedback requires params: target_tile, decision");
+    AdaptRuntimeState& runtime = runtimeFor(state);
+    if (runtime.pendingFeedback) {
+        return fail(ActionStatus::INVALID_ACTION, "Current feedback token is already placed; resolve or cancel it first");
     }
 
     int targetTile = -1;
-    try {
-        targetTile = std::stoi(tileIt->second);
-    } catch (...) {
-        return fail(ActionStatus::INVALID_TARGET, "target_tile must be an integer");
+    if (!parsePositionParam(action, targetTile)) {
+        return fail(ActionStatus::INVALID_ACTION, "put_feedback_token requires integer param: position");
     }
-
     if (!isValidTargetForCursor(state.adaptCursor, targetTile)) {
-        return fail(ActionStatus::INVALID_TARGET, "target_tile not valid for current Adapt slot");
+        return fail(ActionStatus::INVALID_TARGET, "position not valid for current Adapt slot");
     }
-
     if (!isAdaptTileAvailable(state, targetTile)) {
-        return fail(ActionStatus::INVALID_TARGET, "target_tile already occupied this Adapt phase");
+        return fail(ActionStatus::INVALID_TARGET, "position already occupied this Adapt phase");
     }
 
-    const std::string decision = decisionIt->second;
+    runtime.pendingFeedback = true;
+    runtime.pendingTile = targetTile;
+    runtime.pendingPlayerId = action.playerId;
+    runtime.pendingCursor = state.adaptCursor;
+
     const TokenEffect effect = state.adaptTrack[state.adaptCursor];
+    nlohmann::json payload = {
+        {"cursor", state.adaptCursor},
+        {"token", tokenEffectToStr(effect)},
+        {"position", targetTile},
+        {"ring", ringLabelForCursor(state.adaptCursor)},
+        {"nextStep", "resolve_feedback_token_or_cancel_feedback_token"}
+    };
+    return ActionResult::success(ActionMessage("adapt_feedback_token_put", payload.dump()));
+}
+
+ActionResult AdoptPhaseHandler::handleResolveFeedbackToken(const Action& action, GameState& state) {
+    if (!ensureAdaptTrackInitialized(state)) {
+        return fail(ActionStatus::UNKNOWN_ERROR, "Adapt track could not be initialized");
+    }
     AdaptRuntimeState& runtime = runtimeFor(state);
+    if (!runtime.pendingFeedback) {
+        return fail(ActionStatus::INVALID_ACTION, "No pending feedback token; call put_feedback_token first");
+    }
+    if (runtime.pendingPlayerId != action.playerId) {
+        return fail(ActionStatus::NOT_YOUR_TURN, "Only the placing player can resolve this feedback token");
+    }
+    if (runtime.pendingCursor != state.adaptCursor) {
+        return fail(ActionStatus::INVALID_ACTION, "Pending feedback cursor is out of sync");
+    }
+
+    const int targetTile = runtime.pendingTile;
+    const TokenEffect effect = state.adaptTrack[state.adaptCursor];
+    ActionResult effectResult = applyFeedbackEffect(effect, targetTile, action, state);
+    if (!effectResult.ok()) return effectResult;
 
     nlohmann::json appliedEffect = nullptr;
-    if (decision == "cancel") {
-        if (state.params.getCybernationLevel() < 1) {
-            return fail(ActionStatus::INSUFFICIENT_RESOURCE, "Not enough cybernation to cancel feedback");
+    if (effectResult.message.type == "adapt_effect_applied") {
+        try {
+            appliedEffect = nlohmann::json::parse(effectResult.message.payload);
+        } catch (...) {
+            appliedEffect = effectResult.message.payload;
         }
-        state.params.adjustParam(CyberParameter::CYBERNATION_LEVEL, -1);
-        runtime.cancelled[state.adaptCursor] = true;
-    } else if (decision == "allow") {
-        ActionResult effectResult = applyFeedbackEffect(effect, targetTile, action, state);
-        if (!effectResult.ok()) return effectResult;
-        runtime.cancelled[state.adaptCursor] = false;
-        if (effectResult.message.type == "adapt_effect_applied") {
-            try {
-                appliedEffect = nlohmann::json::parse(effectResult.message.payload);
-            } catch (...) {
-                appliedEffect = effectResult.message.payload;
-            }
-        }
-    } else {
-        return fail(ActionStatus::INVALID_ACTION, "decision must be 'cancel' or 'allow'");
     }
 
     const int resolvedIndex = state.adaptCursor;
+    runtime.cancelled[state.adaptCursor] = false;
     runtime.placedOn[state.adaptCursor] = targetTile;
     runtime.tileOccupied[targetTile] = true;
+    runtime.pendingFeedback = false;
+    runtime.pendingTile = -1;
+    runtime.pendingPlayerId = -1;
+    runtime.pendingCursor = -1;
     state.adaptCursor++;
 
     nlohmann::json payload = {
         {"resolvedIndex", resolvedIndex},
         {"token", tokenEffectToStr(effect)},
         {"targetTile", targetTile},
-        {"decision", decision},
+        {"decision", "allow"},
         {"effectApplied", appliedEffect},
         {"ring", ringLabelForCursor(resolvedIndex)},
         {"remaining", static_cast<int>(state.adaptTrack.size()) - state.adaptCursor},
@@ -212,87 +295,81 @@ ActionResult AdoptPhaseHandler::handleResolveFeedback(const Action& action, Game
         {"cybernationLevel", state.params.getCybernationLevel()},
         {"cohesion", state.params.getCohesion()}
     };
+
+    if (payload["isComplete"].get<bool>()) {
+        payload["autoCommit"] = true;
+        payload["commit"] = finalizeAdaptCommit(state, runtime);
+    } else {
+        payload["autoCommit"] = false;
+    }
+
     return ActionResult::success(ActionMessage("adapt_feedback_resolved", payload.dump()));
 }
 
-ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& action, GameState& state) {
-    auto nameIt = action.params.find("disruption_name");
-    if (nameIt == action.params.end()) {
-        return fail(ActionStatus::INVALID_ACTION, "cancel_disruption_effect requires disruption_name");
+ActionResult AdoptPhaseHandler::handleCancelFeedbackToken(const Action& action, GameState& state) {
+    if (!ensureAdaptTrackInitialized(state)) {
+        return fail(ActionStatus::UNKNOWN_ERROR, "Adapt track could not be initialized");
+    }
+    AdaptRuntimeState& runtime = runtimeFor(state);
+    if (!runtime.pendingFeedback) {
+        return fail(ActionStatus::INVALID_ACTION, "No pending feedback token; call put_feedback_token first");
+    }
+    if (runtime.pendingPlayerId != action.playerId) {
+        return fail(ActionStatus::NOT_YOUR_TURN, "Only the placing player can cancel this feedback token");
+    }
+    if (runtime.pendingCursor != state.adaptCursor) {
+        return fail(ActionStatus::INVALID_ACTION, "Pending feedback cursor is out of sync");
     }
 
-    const DisruptionCard* card = findDisruptionCardByName(state, nameIt->second);
-    if (!card) {
-        return fail(ActionStatus::INVALID_TARGET, "Unknown disruption_name");
+    int position = -1;
+    if (!parsePositionParam(action, position)) {
+        return fail(ActionStatus::INVALID_ACTION, "cancel_feedback_token requires integer param: position");
+    }
+    if (position != runtime.pendingTile) {
+        return fail(ActionStatus::INVALID_TARGET, "position mismatch with pending feedback token");
     }
 
-    std::string decision = "cancel";
-    auto decisionIt = action.params.find("decision");
-    if (decisionIt != action.params.end()) {
-        decision = decisionIt->second;
+    if (state.params.getCybernationLevel() < 1) {
+        return fail(ActionStatus::INSUFFICIENT_RESOURCE, "Not enough cybernation to cancel feedback token");
     }
-    if (decision != "cancel" && decision != "apply") {
-        return fail(ActionStatus::INVALID_ACTION, "decision must be 'cancel' or 'apply'");
-    }
+    state.params.adjustParam(CyberParameter::CYBERNATION_LEVEL, -1);
 
-    int times = 1;
-    auto timesIt = action.params.find("times");
-    if (timesIt != action.params.end()) {
-        try {
-            times = std::stoi(timesIt->second);
-        } catch (...) {
-            return fail(ActionStatus::INVALID_ACTION, "times must be integer");
-        }
-    }
-    if (times <= 0) {
-        return fail(ActionStatus::INVALID_ACTION, "times must be > 0");
-    }
-
-    nlohmann::json details = nlohmann::json::array();
-    int processed = 0;
-    for (int i = 0; i < times; ++i) {
-        state.activeDisruption = *card;
-
-        ActionResult utilResult = (decision == "cancel")
-            ? GameUtility::cancelDisruptionEffect(state)
-            : GameUtility::applyDisruptionEffect(state, action);
-
-        if (!utilResult.ok()) {
-            return fail(utilResult.status, utilResult.message.payload);
-        }
-
-        if (decision == "apply") {
-            state.activeDisruption = std::nullopt;
-        }
-
-        details.push_back({
-            {"step", i + 1},
-            {"type", utilResult.message.type},
-            {"payload", utilResult.message.payload}
-        });
-        ++processed;
-    }
+    const int cancelledIndex = state.adaptCursor;
+    const TokenEffect effect = state.adaptTrack[state.adaptCursor];
+    runtime.cancelled[state.adaptCursor] = true;
+    runtime.placedOn[state.adaptCursor] = runtime.pendingTile;
+    runtime.tileOccupied[runtime.pendingTile] = true;
+    runtime.pendingFeedback = false;
+    runtime.pendingTile = -1;
+    runtime.pendingPlayerId = -1;
+    runtime.pendingCursor = -1;
+    state.adaptCursor++;
 
     nlohmann::json payload = {
-        {"disruptionName", card->getName()},
-        {"decision", decision},
-        {"times", times},
-        {"processed", processed},
-        {"cancelApplied", decision == "cancel"},
-        {"details", details}
+        {"cancelledIndex", cancelledIndex},
+        {"token", tokenEffectToStr(effect)},
+        {"position", position},
+        {"decision", "cancel"},
+        {"remaining", static_cast<int>(state.adaptTrack.size()) - state.adaptCursor},
+        {"isComplete", isAdaptComplete(state)},
+        {"cybernationLevel", state.params.getCybernationLevel()}
     };
-    return ActionResult::success(ActionMessage("disruption_effect_cancelled", payload.dump()));
+
+    if (payload["isComplete"].get<bool>()) {
+        payload["autoCommit"] = true;
+        payload["commit"] = finalizeAdaptCommit(state, runtime);
+    } else {
+        payload["autoCommit"] = false;
+    }
+
+    return ActionResult::success(ActionMessage("adapt_feedback_cancelled", payload.dump()));
 }
 
 bool AdoptPhaseHandler::isValidTargetForCursor(int cursor, int tilePos) const {
     if (cursor < 0 || cursor >= GameState::NUM_TILE) return false;
     if (tilePos < 0 || tilePos >= GameState::NUM_TILE) return false;
-
-    // Slot 0 -> inner tile only.
     if (cursor == 0) return tilePos == 0;
-    // Slots 1..6 -> middle ring (1..6).
     if (cursor >= 1 && cursor <= 6) return tilePos >= 1 && tilePos <= 6;
-    // Slots 7..10 -> outer ring (7..10).
     return tilePos >= 7 && tilePos <= 10;
 }
 
@@ -314,24 +391,20 @@ ActionResult AdoptPhaseHandler::applyFeedbackEffect(TokenEffect effect, int tile
         case TokenEffect::LOSE_COHESION:
             state.params.adjustParam(CyberParameter::COHESION, -2);
             return ActionResult::success(ActionMessage("adapt_effect_applied", R"({"effect":"LOSE_COHESION","delta":-2})"));
-        case TokenEffect::SOLVE_DISRUPTION:
-            {
-                ActionResult drawResult = GameUtility::drawDisruption(state);
-                if (!drawResult.ok()) {
-                    return fail(drawResult.status, drawResult.message.payload);
-                }
-                nlohmann::json payload = {
-                    {"effect", "SOLVE_DISRUPTION"},
-                    {"drawn", true},
-                    {"disruptionName", state.activeDisruption.has_value() ? state.activeDisruption->getName() : "UNKNOWN"},
-                    {"cancellable", state.activeDisruption.has_value() ? state.activeDisruption->isCancellable() : false}
-                };
-                return ActionResult::success(ActionMessage("adapt_effect_applied", payload.dump()));
+        case TokenEffect::SOLVE_DISRUPTION: {
+            ActionResult drawResult = GameUtility::drawDisruption(state);
+            if (!drawResult.ok()) {
+                return fail(drawResult.status, drawResult.message.payload);
             }
+            nlohmann::json payload = {
+                {"effect", "SOLVE_DISRUPTION"},
+                {"drawn", true},
+                {"disruptionName", state.activeDisruption.has_value() ? state.activeDisruption->getName() : "UNKNOWN"},
+                {"cancellable", state.activeDisruption.has_value() ? state.activeDisruption->isCancellable() : false}
+            };
+            return ActionResult::success(ActionMessage("adapt_effect_applied", payload.dump()));
+        }
         case TokenEffect::DEVELOP_STACK:
-            // If already developed, no effect.
-            // If not, create DEV_A/DEV_B based on optional param:
-            // develop_to: DEV_A|DEV_B|WORKS|AGORA (default DEV_A)
             if (!tile->hasOverlay()) {
                 StackType targetType = StackType::DEV_A;
                 auto it = action.params.find("develop_to");
@@ -351,9 +424,6 @@ ActionResult AdoptPhaseHandler::applyFeedbackEffect(TokenEffect effect, int tile
                 return ActionResult::success(ActionMessage("adapt_effect_applied", payload.dump()));
             }
         case TokenEffect::TRANSFORM_STACK:
-            // Minimal implementation:
-            // - If no development tile, no effect.
-            // - If developed, toggle DEV_A <-> DEV_B with a real template stack.
             if (tile->hasOverlay()) {
                 Stack overlay = tile->getOverlay();
                 StackType t = overlay.getType();
@@ -370,73 +440,8 @@ ActionResult AdoptPhaseHandler::applyFeedbackEffect(TokenEffect effect, int tile
     }
 }
 
-
-ActionResult AdoptPhaseHandler::handleTrade(const Action& action, GameState& state) {
-    return GameUtility::tradeForDisruption(state, action);
-}
-
-
-
 ActionResult AdoptPhaseHandler::handleCommit(const Action& action, GameState& state) {
     (void)action;
-    if (!ensureAdaptTrackInitialized(state)) {
-        return fail(ActionStatus::UNKNOWN_ERROR, "Adapt track could not be initialized");
-    }
-    if (!isAdaptComplete(state)) {
-        return fail(ActionStatus::INVALID_ACTION, "Cannot commit: Adapt feedback is not fully resolved");
-    }
-    AdaptRuntimeState& runtime = runtimeFor(state);
-
-    // Adapt step 2:
-    // Return face-up feedback tokens on INNER+OUTER stacks to bag.
-    // Discard all others to reserve (not persisted in current data model).
-    std::array<bool, GameState::NUM_TILE> returnable{};
-    returnable.fill(false);
-    returnable[0] = true;  // inner
-    for (int t = 7; t <= 10; ++t) returnable[t] = true; // outer
-
-    std::vector<TokenEffect> nextBag;
-    int returnedToBag = 0;
-    int discarded = 0;
-    for (int i = 0; i < static_cast<int>(state.adaptTrack.size()); ++i) {
-        const int tilePos = (i < static_cast<int>(runtime.placedOn.size())) ? runtime.placedOn[i] : -1;
-        const bool cancelled = (i < static_cast<int>(runtime.cancelled.size())) ? runtime.cancelled[i] : true;
-        if (tilePos < 0 || tilePos >= GameState::NUM_TILE) continue;
-
-        if (!cancelled && returnable[tilePos]) {
-            nextBag.push_back(state.adaptTrack[i]);
-            ++returnedToBag;
-        } else {
-            // "Discard to reserve" means tokens return to the finite pool.
-            state.pool.putBack(state.adaptTrack[i]);
-            ++discarded;
-        }
-    }
-    state.setTokenBag(nextBag);
-
-    // Adapt step 3 (simplified for current milestone):
-    // Only check active Goal completion.
-    // TODO: Re-introduce turn-track end condition and full game outcomes
-    // once Role/Agenda pipeline is implemented.
-    const bool goalMet = state.isActiveGoalMet();
-    const bool turnLimitReached = false;
-    if (goalMet) {
-        state.gameOver = true;
-    }
-
-    nlohmann::json payload = {
-        {"returnedToBag", returnedToBag},
-        {"discardedToReserve", discarded},
-        {"bagSize", static_cast<int>(state.tokenBag.size())},
-        {"goalMet", goalMet},
-        {"turnLimitReached", turnLimitReached},
-        {"gameOver", state.gameOver},
-        {"nextAction", state.gameOver ? "END_GAME" : "START_NEW_TURN"},
-        {"outcomeResolution", "TODO_ROLE_AGENDA_NOT_ENABLED"}
-    };
-
-    // Commit closes the current Adapt runtime window.
-    resetRuntimeFromTrack(runtime, std::vector<TokenEffect>{});
-
-    return ActionResult::success(ActionMessage("adapt_commit", payload.dump()));
+    (void)state;
+    return fail(ActionStatus::INVALID_ACTION, "commit is automatic after final resolve/cancel");
 }

@@ -66,6 +66,11 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
     //    (the current player can act again on their NEXT turn in the cycle,
     //     unless they pass)
     if (result.ok()) {
+        // Adapt is currently split into put -> resolve/cancel.
+        // Keep the same player for the follow-up action after a successful put.
+        if (state.currentPhase == GamePhase::ADOPT && action.type == "put_feedback_token") {
+            return result;
+        }
         advanceTurn(state);
     }
 

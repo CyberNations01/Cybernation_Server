@@ -25,15 +25,14 @@ public:
     static bool isTileOccupiedForAdaptPrompt(const GameState& state, int tilePos);
 
 private:
-    ActionResult handleResolveFeedback(const Action& action, GameState& state);
-    ActionResult handleCancelDisruptionEffect(const Action& action, GameState& state);
-    ActionResult handleTrade(const Action& action, GameState& state);
+    ActionResult handlePutFeedbackToken(const Action& action, GameState& state);
+    ActionResult handleResolveFeedbackToken(const Action& action, GameState& state);
+    ActionResult handleCancelFeedbackToken(const Action& action, GameState& state);
     ActionResult handleCommit(const Action& action, GameState& state);
 
     bool ensureAdaptTrackInitialized(GameState& state);
     bool isAdaptComplete(const GameState& state) const;
     bool isAdaptTileAvailable(GameState& state, int tilePos) const;
-    const DisruptionCard* findDisruptionCardByName(const GameState& state, const std::string& name) const;
 
     bool isValidTargetForCursor(int cursor, int tilePos) const;
     ActionResult applyFeedbackEffect(TokenEffect effect, int tilePos, const Action& action, GameState& state);
