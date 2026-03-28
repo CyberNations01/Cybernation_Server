@@ -217,69 +217,6 @@ bool GameState::isActiveGoalMet() const {
 
         if (!compareWithOp(lhs, cond.op, cond.num)) return false;
     }
-    // tokenManager.rebuildBagFromBoard(board, pool);
-    // syncTokenBagFromManager();
-}
-
-void GameState::syncTokenBagFromManager() {
-    tokenBag = tokenManager.getBag();
-}
-
-void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag) {
-    tokenManager.setBag(nextBag);
-    syncTokenBagFromManager();
-}
-
-bool GameState::isActiveGoalMet() const {
-    const auto& conditions = currentGoal.getConditions();
-    if (conditions.empty()) return false;
-
-    for (const auto& cond : conditions) {
-        int lhs = 0;
-        if (cond.type == "Wild") {
-            for (const auto& tile : board) {
-                if (tile.getEffectiveType() == StackType::WILD &&
-                    isPosMatch(tile.getPosition(), cond.position)) {
-                    ++lhs;
-                }
-            }
-        } else if (cond.type == "Waste") {
-            for (const auto& tile : board) {
-                if (tile.getEffectiveType() == StackType::WASTE &&
-                    isPosMatch(tile.getPosition(), cond.position)) {
-                    ++lhs;
-                }
-            }
-        } else if (cond.type == "DevA") {
-            for (const auto& tile : board) {
-                if (tile.getEffectiveType() == StackType::DEV_A &&
-                    isPosMatch(tile.getPosition(), cond.position)) {
-                    ++lhs;
-                }
-            }
-        } else if (cond.type == "DevB") {
-            for (const auto& tile : board) {
-                if (tile.getEffectiveType() == StackType::DEV_B &&
-                    isPosMatch(tile.getPosition(), cond.position)) {
-                    ++lhs;
-                }
-            }
-        } else if (cond.type == "Co" || cond.type == "Cohesion") {
-            lhs = params.getCohesion();
-        } else if (cond.type == "Cy" || cond.type == "Cybernation") {
-            lhs = params.getCybernationLevel();
-        } else if (cond.type == "HR" || cond.type == "HumanRelation") {
-            lhs = params.getHumanRelation();
-        } else if (cond.type == "Env" || cond.type == "Environment") {
-            lhs = params.getEnvironment();
-        } else if (cond.type == "Tech" || cond.type == "Technology") {
-            lhs = params.getTechnology();
-        } else {
-            return false;
-        }
-
-        if (!compareWithOp(lhs, cond.op, cond.num)) return false;
-    }
     return true;
 }
 

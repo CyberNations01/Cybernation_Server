@@ -129,9 +129,6 @@ ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameSta
         return ActionResult::invalid("Missing param: targetTile");
     }
     if (sideIt == action.params.end()){
-        return ActionResult::invalid("Missing param: targetTile");
-    }
-    if (sideIt == action.params.end()){
         return ActionResult::invalid("Missing param: targetSide");
     }
     int targetTile = -1;
@@ -150,7 +147,7 @@ ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameSta
     }
 
     Tile* tile = state.getTile(targetTile);
-    if (tile = nullptr){
+    if (tile == nullptr){
         return {ActionStatus::INVALID_TARGET,{"error","Target tile does not exist"}};
     }
 
