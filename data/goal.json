@@ -16,8 +16,8 @@
             }
         },
         "start_effect": {
-            "DevA":  [7],
-            "DevB":  [0],
+            "DevB":  [7],
+            "DevA":  [0],
             "Waste": [2]
         },
         "reverseGoalId": 1
@@ -38,7 +38,7 @@
             }
         },
         "start_effect": {
-            "DevB":  [0],
+            "DevA":  [0],
             "Wild":  [2,7]
         },
         "reverseGoalId": 0
@@ -52,7 +52,7 @@
                     "compare": "GE",
                     "num": 2
                 },
-                "DevA": {
+                "DevB": {
                     "compare": "GE",
                     "num": 3
                 }
@@ -63,7 +63,7 @@
             }
         },
         "start_effect": {
-            "DevA":  [8],
+            "DevB":  [8],
             "Waste": [0,3]
         },
         "reverseGoalId": 3
@@ -73,11 +73,11 @@
         "name" : "Each to their Own",
         "victory_condition": {
             "stack" : {
-                "DevB" : {
+                "DevA" : {
                     "compare": "GE",
                     "num": 6
                 },
-                "DevA": {
+                "DevB": {
                     "compare": "EQ",
                     "num": 0
                 }
@@ -88,7 +88,7 @@
             }
         },
         "start_effect": {
-            "DevB":  [8],
+            "DevA":  [8],
             "Waste": [0,3]
         },
         "reverseGoalId": 2
@@ -121,7 +121,6 @@
         },
         "reverseGoalId": 5
     },
-
     {
         "id": 5,        
         "name" : "Ransack",
@@ -147,8 +146,8 @@
         },
         "start_effect": {
             "Wild": [0],
-            "DevB": [7,10],
-            "DevA": [8,9]
+            "DevA": [7,10],
+            "DevB": [8,9]
         },
         "reverseGoalId": 4
     },
@@ -157,7 +156,7 @@
         "name" : "Equity",
         "victory_condition": {
             "stack" : {
-                "DevA": {
+                "DevB": {
                     "position": "outer",
                     "compare": "EQ",
                     "num": 4
@@ -179,13 +178,12 @@
         },
         "reverseGoalId": 7
     },
-
     {
         "id": 7,        
         "name" : "Inequity",
         "victory_condition": {
             "stack" : {
-                "DevA": {
+                "DevB": {
                     "position": "inner",
                     "compare": "EQ",
                     "num": 1
@@ -212,7 +210,7 @@
         "name" : "Tomorrow through Tech",
         "victory_condition": {
             "stack" : {
-                "DevB": {
+                "DevA": {
                     "position": "inner",
                     "compare": "EQ",
                     "num": 1
@@ -225,17 +223,17 @@
         },
         "start_effect": {
             "Wild": [2,4],
-            "DevA": [0]
+            "DevA": [9],
+            "DevB": [0]
         },
         "reverseGoalId": 9
     },
-
     {
         "id": 9,        
         "name" : "Back to Nature",
         "victory_condition": {
             "stack" : {
-                "DevB": {
+                "DevA": {
                     "compare": "EQ",
                     "num": 0
                 },
@@ -250,10 +248,308 @@
             }
         },
         "start_effect": {
-            "Wild":  [10],
-            "DevA":  [2,4],
+            "Wild":  [9],
+            "DevB":  [2,4],
             "Waste": [0]
         },
         "reverseGoalId": 8
+    },
+    {
+        "id": 10,
+        "name": "Sustainable Development",
+        "victory_condition": {
+            "stack" : {
+                "DevA": {
+                    "compare": "EQ",
+                    "num": 2
+                },
+                "DevB": {
+                    "compare": "EQ",
+                    "num": 3
+                },
+                "Wild": {
+                    "compare": "EQ",
+                    "num": 6
+                }
+            }
+        },
+        "start_effect": {
+            "DevA":  [6],
+            "Waste": [0,7]
+        },
+        "reverseGoalId": 11
+    },
+    {
+        "id": 11,
+        "name": "Growth at All Costs",
+        "victory_condition": {
+            "stack" : {
+                "DevA": {
+                    "compare": "EQ",
+                    "num": 8
+                },
+                "DevB": {
+                    "compare": "EQ",
+                    "num": 3
+                }
+            }
+        },
+        "start_effect": {
+            "DevA":  [6],
+            "Waste": [0,7]
+        },
+        "reverseGoalId": 10
+    },
+    {
+        "id": 12,
+        "name": "Salt the Earth",
+        "victory_condition": {
+            "stack" : {
+                "Waste": {
+                    "compare": "GE",
+                    "num": 8
+                }
+            }
+        },
+        "start_effect": {
+            "DevA":  [3],
+            "DevB":  [0],
+            "Wilds": [7,9]
+        },
+        "reverseGoalId": 13
+    },
+    {
+        "id": 13,        
+        "name" : "Reclaim the Desert",
+        "victory_condition": {
+            "stack" : {
+                "Waste": {
+                    "compare": "EQ",
+                    "num": 0
+                },
+                "Wild": {
+                    "compare": "GE",
+                    "num": 6
+                }
+            },
+            "Co": {
+                "compare": "GE",
+                "num": 18
+            }
+        },
+        "start_effect": {
+            "Wild":  [9],
+            "DevB":  [2,4],
+            "Waste": [0]
+        },
+        "reverseGoalId": 12
+    },
+    {
+        "id": 14,        
+        "name" : "Centralized Power",
+        "victory_condition": {
+            "stack" : {
+                "DevB": {
+                    "position": "inner",
+                    "compare": "EQ",
+                    "num": 1
+                },
+                "DevA": {
+                    "position": "middle",
+                    "compare": "EQ",
+                    "num": 6
+                }
+            },
+            "Cy": {
+                "compare": "EQ",
+                "num": 1
+            }
+        },
+        "start_effect": {
+            "Waste": [4],
+            "DevB": [0,8]
+        },
+        "reverseGoalId": 15
+    },
+    {
+        "id": 15,        
+        "name" : "Sociocracy",
+        "victory_condition": {
+            "stack" : {
+                "Wild": {
+                    "position": "inner",
+                    "compare": "EQ",
+                    "num": 1
+                },
+                "DevB": {
+                    "compare": "GE",
+                    "num": 7
+                }
+            },
+            "Co": {
+                "compare": "GE",
+                "num": 12
+            }
+        },
+        "start_effect": {
+            "Waste": [4],
+            "DevB": [0,8]
+        },
+        "reverseGoalId": 14
+    },
+    {
+        "id": 16,        
+        "name" : "Unlock People Power",
+        "victory_condition": {
+            "stack" : {
+                "DevB": {
+                    "position": "outer",
+                    "compare": "EQ",
+                    "num": 4
+                }
+            },
+            "HR" : {
+                "compare": "GE",
+                "num": 10
+            }
+        },
+        "start_effect": {
+            "Waste": [0,1],
+            "DevA": [9]
+        },
+        "reverseGoalId": 17
+    },
+    {
+        "id": 17,        
+        "name" : "Control the Masses",
+        "victory_condition": {
+            "stack" : {
+                "Waste": {
+                    "position": "outer",
+                    "compare": "EQ",
+                    "num": 4
+                },
+                "DevB": {
+                    "compare": "LE",
+                    "num": 2
+                }
+            },
+            "Co" : {
+                "compare": "LE",
+                "num": 10
+            }
+        },
+        "start_effect": {
+            "Waste": [0,1],
+            "DevA": [9]
+        },
+        "reverseGoalId": 16
+    },
+    {
+        "id": 18,        
+        "name" : "The Good Old Times",
+        "victory_condition": {
+            "stack" : {
+                "DevA": {
+                    "compare": "GE",
+                    "num": 6
+                },
+                "DevB": {
+                    "compare": "EQ",
+                    "num": 0
+                }
+            }
+        },
+        "start_effect": {
+            "Waste": [0],
+            "DevB": [1,5]
+        },
+        "reverseGoalId": 19
+    },
+    {
+        "id": 19,        
+        "name" : "Radical Progress",
+        "victory_condition": {
+            "stack" : {
+                "Wild": {
+                    "compare": "EQ",
+                    "num": 0
+                },
+                "Waste": {
+                    "compare": "EQ",
+                    "num": 0
+                }
+            },
+            "HR": {
+                "compare": "GE",
+                "num": 10
+            },
+            "Tech": {
+                "compare": "GE",
+                "num": 10
+            }
+        },
+        "start_effect": {
+            "Waste": [0],
+            "Wild": [1,5]
+        },
+        "reverseGoalId": 18
+    },
+    {
+        "id": 20,        
+        "name" : "Destabilise",
+        "victory_condition": {
+            "stack" : {
+                "Waste": [
+                    {
+                        "position": "inner",
+                        "compare": "EQ",
+                        "num": 1
+                    },
+                    {
+                        "position": "middle",
+                        "compare": "GE",
+                        "num": 3
+                    }
+                ]
+            },
+            "Co": {
+                "compare": "LE",
+                "num": 10
+            }
+        },
+        "start_effect": {
+            "DevB": [6],
+            "Wild": [0],
+            "DevA": [8,10]
+        },
+        "reverseGoalId": 21
+    },
+    {
+        "id": 21,        
+        "name" : "The Long Now",
+        "victory_condition": {
+            "stack" : {
+                "DevB": {
+                    "position": "inner",
+                    "compare": "EQ",
+                    "num": 1
+                }
+            },
+            "Env": {
+                "compare": "GE",
+                "num": 15
+            },
+            "Co": {
+                "compare": "GE",
+                "num": 20
+            }
+        },
+        "start_effect": {
+            "Waste": [6,10],
+            "Wild": [0],
+            "DevA": [8]
+        },
+        "reverseGoalId": 20
     }
 ]

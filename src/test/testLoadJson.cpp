@@ -8,6 +8,44 @@
 #include <unordered_map>
 #include <iostream>
 
+bool testGoalMultiStackConditionParsing()
+{
+    std::vector<Goal> goals = DataLoader::loadGoal("data/goal.json");
+    const Goal* target = nullptr;
+    for (const auto& g : goals) {
+        if (g.getId() == 20) {
+            target = &g;
+            break;
+        }
+    }
+    if (target == nullptr) {
+        std::cout << "[FAIL] Goal id=20 (Destabilise) not found" << std::endl;
+        return false;
+    }
+
+    int wasteInnerEq1 = 0;
+    int wasteMiddleGe3 = 0;
+    int coLe10 = 0;
+    for (const auto& vc : target->getConditions()) {
+        if (vc.type == "Waste" && vc.position.has_value() &&
+            vc.position.value() == "inner" && vc.op == comparator::EQ && vc.num == 1) {
+            wasteInnerEq1++;
+        }
+        if (vc.type == "Waste" && vc.position.has_value() &&
+            vc.position.value() == "middle" && vc.op == comparator::GE && vc.num == 3) {
+            wasteMiddleGe3++;
+        }
+        if (vc.type == "Co" && vc.op == comparator::LE && vc.num == 10) {
+            coLe10++;
+        }
+    }
+
+    const bool ok = (wasteInnerEq1 == 1 && wasteMiddleGe3 == 1 && coLe10 == 1);
+    std::cout << (ok ? "[PASS] " : "[FAIL] ")
+              << "Goal id=20 parses two Waste conditions + Co LE 10 correctly" << std::endl;
+    return ok;
+}
+
 void testLoadStack()
 {
     std::vector<Stack> stackSet;
@@ -295,6 +333,9 @@ void testDraw10AndResolve() {
 
 int main(void)
 {
+    if (!testGoalMultiStackConditionParsing()) {
+        return 1;
+    }
     // testLoadStack();
     // testLoadTile();
     // testBoard();

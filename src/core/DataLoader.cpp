@@ -51,18 +51,25 @@ Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
             const auto& stackField = cond["stack"];
             for (const auto &e: stackStr) {
                 if (stackField.contains(e)) {
-                    victory_condition vc; 
-                    const auto& stk = stackField[e];  
+                    const auto& stk = stackField[e];
+                    auto pushOneCondition = [&](const nlohmann::json& one) {
+                        victory_condition vc;
+                        vc.type = e;
+                        vc.num = one.value("num", 0);
+                        vc.op = strToComparator(one.value("compare", "EQ"));
+                        if (one.contains("position")) {
+                            vc.position = std::optional<std::string>(one["position"].get<std::string>());
+                        }
+                        vc_vector.push_back(vc);
+                    };
 
-                    vc.type = e;
-                    vc.num = stk.value("num", 0);
-                    
-                    std::string op = stk.value("compare", "EQ");
-                    vc.op = strToComparator(op);
-                    if (stk.contains("position"))
-                        vc.position = 
-                            std::optional<std::string>(stk["position"].get<std::string>());
-                    vc_vector.push_back(vc);
+                    if (stk.is_array()) {
+                        for (const auto& one : stk) {
+                            if (one.is_object()) pushOneCondition(one);
+                        }
+                    } else if (stk.is_object()) {
+                        pushOneCondition(stk);
+                    }
                 }
                 
             }
