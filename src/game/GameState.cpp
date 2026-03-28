@@ -1,4 +1,6 @@
 #include "game/GameState.hpp"
+#include <algorithm>
+#include <random>
 #include <map>
 
 namespace {
@@ -72,6 +74,7 @@ GameState::GameState() {
     }
 
     rebuildTokenBag();
+    fillFeedbackTrackFromBag();
     adaptTrack.clear();
     adaptCursor = 0;
 }
@@ -108,9 +111,51 @@ int GameState::findFirstPlayer() const
     return 0;
 }
 
+TokenEffect GameState::mapStackTypeToFeedbackToken(StackType type) const{
+    switch(type){
+        case StackType::WILD:
+            return TokenEffect::TURN_WILD;
+        case StackType::WASTE:
+            return TokenEffect::LOSE_COHESION;
+        case StackType::DEV_A: // Works
+            return TokenEffect::TURN_WASTE;
+        case StackType::DEV_B: // Agora
+            return TokenEffect::SOLVE_DISRUPTION;
+        default:
+            return TokenEffect::UNKNOWN;
+    }
+}
+
 void GameState::rebuildTokenBag() {
-    tokenManager.rebuildBagFromBoard(board, pool);
-    syncTokenBagFromManager();
+    tokenBag.clear();
+    // Rebuild bag from current board state by drawing matching tokens from reserve.
+    for (const auto& tile : board) {
+        TokenEffect token = mapStackTypeToFeedbackToken(tile.getEffectiveType());
+        if (token == TokenEffect::UNKNOWN){
+            continue;
+        }
+        if (pool.draw(token)){
+            tokenBag.push_back(token);
+        }
+        // If reserve is empty for that token, we silently skip for now.
+        // Later you can change this to logging or error handling.
+    }
+
+    // Shuffle bag
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(tokenBag.begin(), tokenBag.end(), gen);
+}
+
+void GameState::fillFeedbackTrackFromBag(){
+    for(int i = 0; i < FEEDBACK_TRACK_SIZE; ++i){
+        if (!tokenBag.empty()){
+            feedbackTrack[i] = tokenBag.back();
+            tokenBag.pop_back();
+        }else{
+            feedbackTrack[i] = TokenEffect::UNKNOWN;
+        }
+    }
 }
 
 void GameState::syncTokenBagFromManager() {

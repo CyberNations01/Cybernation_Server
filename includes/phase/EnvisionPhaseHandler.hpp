@@ -7,14 +7,17 @@
 /*
  * EnvisionPhaseHandler
  * 
- * Valid actions during Envision phase:
+ * Current minimal implementation supports:
  * 
- *   - "claim_first_player" : Trade resources to acquire first-player token
- *   - "trade"              : Trade resources between params
- *   - "commit"   : Commit/finalize changes for the round
- *   - "pass"
+ *   - "shift_power" : pass the first-player token to another player 
+ *   - "come_together": increase cohesion by 1
+ *   - "prepare": increase cybernation level by 1
+ *   - "set_course": move people token to a target tile/side. (simple)
  * 
- * Add more actions here as the game design solidifies.
+ * 
+ * Reserved for future extension:
+ *   - "connect"
+ *   - "steer"
  */
 
 class EnvisionPhaseHandler : public PhaseHandler {
@@ -23,10 +26,19 @@ public:
     GamePhase    getPhase() const override { return GamePhase::ENVISION; }
 
 private:
-    ActionResult handleTrade(const Action& action, GameState& state);
-    ActionResult handleClaimFirstPlayer(const Action& action, GameState& state);
-    ActionResult handleCommit(const Action& action, GameState& state);
+    ActionResult handleShiftPower(const Action& action, GameState& state);
+    ActionResult handleComeTogether(const Action& action, GameState& state);
+    ActionResult handlePrepare(const Action& action, GameState& state);
+    ActionResult handleSetCourse(const Action& action, GameState& state);
     
+    ActionResult handleConnect(const Action& action, GameState& state);
+    ActionResult handleSteer(const Action& action, GameState& state);
+    
+
+private:
+    // Helpers
+    Player* findPlayer(GameState& state, int playerId);
+    bool tryParseInt(const std::string& s, int& value);
 };
 
 #endif
