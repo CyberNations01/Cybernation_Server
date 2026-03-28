@@ -16,6 +16,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <array>
 #include <optional>
 
 
@@ -34,10 +35,12 @@ class GameState {
 public:
     static constexpr int NUM_PLAYERS = 5;
     static constexpr int NUM_TILE  = 11;
+    static constexpr int FEEDBACK_TRACK_SIZE = 11;
 
     // --- Board ---
     std::vector<Tile>        board;
     std::vector<TokenEffect> tokenBag;  // Tokens currently in the draw bag
+    std::array<TokenEffect, FEEDBACK_TRACK_SIZE> feedbackTrack;
 
     // --- Resources ---
     Params       params;
@@ -101,6 +104,10 @@ public:
 
     // Re-derive the token bag from current board state
     void rebuildTokenBag();
+    void fillFeedbackTrackFromBag();
+
+private:
+    TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
     void syncTokenBagFromManager();
     void setTokenBag(const std::vector<TokenEffect>& nextBag);
 
