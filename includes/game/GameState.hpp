@@ -105,13 +105,12 @@ public:
     // Re-derive the token bag from current board state
     void rebuildTokenBag();
     void fillFeedbackTrackFromBag();
+    void syncTokenBagFromManager();
+    void setTokenBag(const std::vector<TokenEffect>& nextBag);
+    bool isActiveGoalMet() const;
 
 private:
     TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
-    void syncTokenBagFromManager();
-    void setTokenBag(const std::vector<TokenEffect>& nextBag);
-
-    bool isActiveGoalMet() const;
 };
 
 #endif

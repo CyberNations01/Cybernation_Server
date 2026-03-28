@@ -26,6 +26,9 @@ public:
     GamePhase    getPhase() const override { return GamePhase::ENVISION; }
 
 private:
+    ActionResult handleInitialRoleSetup(const Action& action, GameState& state);
+    void ensureInitialRoleOptions(GameState& state);
+
     ActionResult handleShiftPower(const Action& action, GameState& state);
     ActionResult handleComeTogether(const Action& action, GameState& state);
     ActionResult handlePrepare(const Action& action, GameState& state);

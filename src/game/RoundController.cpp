@@ -31,6 +31,18 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
         initialized = true;
     }
 
+    // Initial role setup (parallel submission) gate.
+    // Only active at round 1, Envision phase, before setup completion.
+    if (state.currentRound == 1 &&
+        state.currentPhase == GamePhase::ENVISION &&
+        !state.roleSetupComplete) {
+        PhaseHandler* handler = getHandlerForPhase(state.currentPhase);
+        if (!handler) {
+            return {ActionStatus::UNKNOWN_ERROR};
+        }
+        return handler->handle(action, state);
+    }
+
     // 2. Is it this player's turn? If not, silently ignore.
     if (action.playerId != getCurrentPlayerId()) {
         return ActionResult::ignored();

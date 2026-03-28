@@ -69,23 +69,65 @@ ActionResult cancelToken(GameRoom& room, int position, const std::string& label)
     a.params["position"] = std::to_string(position);
     return dispatch(room, a, label);
 }
+
+ActionResult selectRole(GameRoom& room, int playerId, int roleId, const std::string& label) {
+    Action a;
+    a.playerId = playerId;
+    a.type = "select_role";
+    a.params["role_id"] = std::to_string(roleId);
+    return dispatch(room, a, label);
+}
 }
 
 int main() {
     GameRoom room;
     std::cout << "=== Adapt Branch Coverage Simulation ===" << std::endl;
 
+    // --- 0) round-1 Envision role setup (parallel submission) ---
+    expectTrue(room.getState().currentRound == 1, "role setup starts in round 1");
+    expectTrue(room.getState().currentPhase == GamePhase::ENVISION, "role setup runs in ENVISION");
+    expectTrue(!room.getState().roleSetupComplete, "role setup initially incomplete");
+
+    Action badRoleAction;
+    badRoleAction.playerId = 0;
+    badRoleAction.type = "pass";
+    ActionResult badRoleActionRes = dispatch(room, badRoleAction, "role_setup_bad_action");
+    expectTrue(!badRoleActionRes.ok(), "non-select action rejected during role setup");
+
+    bool optionsReady = true;
+    for (int pid = 0; pid < GameState::NUM_PLAYERS; ++pid) {
+        if (room.getState().playerRoleOptions[pid].size() != 2) {
+            optionsReady = false;
+            break;
+        }
+    }
+    expectTrue(optionsReady, "each player receives exactly two role options");
+
+    const int actorBeforeRoleSelect = currentActor(room);
+    // Submit from non-current players first to verify parallel semantics.
+    for (int pid = 1; pid < GameState::NUM_PLAYERS; ++pid) {
+        const int roleId = room.getState().playerRoleOptions[pid][0];
+        ActionResult roleRes = selectRole(room, pid, roleId, "role_select_non_current");
+        expectTrue(roleRes.ok(), "non-current player can submit select_role");
+    }
+    expectTrue(currentActor(room) == actorBeforeRoleSelect,
+               "role setup submissions do not advance round-controller turn");
+
+    {
+        const int dupRole = room.getState().playerRoleOptions[1][0];
+        ActionResult dupRes = selectRole(room, 1, dupRole, "role_select_duplicate");
+        expectTrue(!dupRes.ok(), "duplicate role submission by same player is rejected");
+    }
+
+    {
+        const int roleIdP0 = room.getState().playerRoleOptions[0][0];
+        ActionResult finalRoleRes = selectRole(room, 0, roleIdP0, "role_select_last_player");
+        expectTrue(finalRoleRes.ok(), "last player can finish role setup");
+    }
+    expectTrue(room.getState().roleSetupComplete, "role setup completes after all players submit");
+
     // Temporary test bootstrap: mark role setup complete until
     // interactive parallel role selection is implemented outside GameRoom.
-    room.getState().roleSetupComplete = true;
-    const auto& roleDeck = room.getState().roleManager.getDeck();
-    if (roleDeck.size() < static_cast<size_t>(GameState::NUM_PLAYERS)) {
-        std::cout << "[FAIL] role deck size is insufficient for tests" << std::endl;
-        return 1;
-    }
-    for (int pid = 0; pid < GameState::NUM_PLAYERS; ++pid) {
-        room.getState().playerSelectedRoleId[pid] = roleDeck[pid].getId();
-    }
     expectTrue(room.getState().roleSetupComplete, "Role setup marked complete for tests");
 
     // Initialize controller + turn order quickly.

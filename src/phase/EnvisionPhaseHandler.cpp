@@ -1,6 +1,15 @@
 #include "phase/EnvisionPhaseHandler.hpp"
+#include <algorithm>
+#include "nlohmann/json.hpp"
 
 ActionResult EnvisionPhaseHandler::handle(const Action& action, GameState& state) {
+    // Initial role setup gate: only round 1 / Envision / before setup complete.
+    if (state.currentRound == 1 &&
+        state.currentPhase == GamePhase::ENVISION &&
+        !state.roleSetupComplete) {
+        return handleInitialRoleSetup(action, state);
+    }
+
     // "pass" is valid in every phase — RoundController handles the pass 
     // mechanics, but we still return SUCCESS so it knows to proceed.
 
@@ -24,6 +33,79 @@ ActionResult EnvisionPhaseHandler::handle(const Action& action, GameState& state
     }
 
     return ActionResult::invalid("Unknown envision action: " + action.type);
+}
+
+ActionResult EnvisionPhaseHandler::handleInitialRoleSetup(const Action& action, GameState& state) {
+    ensureInitialRoleOptions(state);
+
+    if (action.type != "select_role") {
+        return ActionResult::invalid("role setup in progress: only select_role is allowed");
+    }
+    if (action.playerId < 0 || action.playerId >= GameState::NUM_PLAYERS) {
+        return ActionResult::invalid("invalid player id");
+    }
+    if (state.playerSelectedRoleId[action.playerId] >= 0) {
+        return ActionResult::invalid("player already selected a role");
+    }
+
+    auto it = action.params.find("role_id");
+    if (it == action.params.end()) {
+        return ActionResult::invalid("select_role requires param: role_id");
+    }
+
+    int selectedRoleId = -1;
+    if (!tryParseInt(it->second, selectedRoleId)) {
+        return ActionResult::invalid("role_id must be an integer");
+    }
+
+    const auto& options = state.playerRoleOptions[action.playerId];
+    if (std::find(options.begin(), options.end(), selectedRoleId) == options.end()) {
+        return {ActionStatus::INVALID_TARGET, ActionMessage("error", "selected role_id is not in player's options")};
+    }
+
+    state.playerSelectedRoleId[action.playerId] = selectedRoleId;
+    int selectedCount = 0;
+    for (int pid = 0; pid < GameState::NUM_PLAYERS; ++pid) {
+        if (state.playerSelectedRoleId[pid] >= 0) ++selectedCount;
+    }
+    if (selectedCount >= GameState::NUM_PLAYERS) {
+        state.roleSetupComplete = true;
+    }
+
+    nlohmann::json payload = {
+        {"playerId", action.playerId},
+        {"selectedRoleId", selectedRoleId},
+        {"selectedCount", selectedCount},
+        {"totalPlayers", GameState::NUM_PLAYERS},
+        {"setupComplete", state.roleSetupComplete}
+    };
+    return ActionResult::success(ActionMessage("role_selected", payload.dump()));
+}
+
+void EnvisionPhaseHandler::ensureInitialRoleOptions(GameState& state) {
+    bool alreadyInitialized = true;
+    for (const auto& options : state.playerRoleOptions) {
+        if (options.size() < 2) {
+            alreadyInitialized = false;
+            break;
+        }
+    }
+    if (alreadyInitialized) return;
+
+    state.playerRoleOptions.assign(GameState::NUM_PLAYERS, std::vector<int>{});
+    state.playerSelectedRoleId.fill(-1);
+    state.roleSetupComplete = false;
+
+    const auto& roleDeck = state.roleManager.getDeck();
+    const int needed = GameState::NUM_PLAYERS * 2;
+    if (static_cast<int>(roleDeck.size()) < needed) {
+        return;
+    }
+
+    for (int pid = 0; pid < GameState::NUM_PLAYERS; ++pid) {
+        state.playerRoleOptions[pid].push_back(roleDeck[pid * 2].getId());
+        state.playerRoleOptions[pid].push_back(roleDeck[pid * 2 + 1].getId());
+    }
 }
 Player* EnvisionPhaseHandler::findPlayer(GameState& state, int playerId){
     return state.getPlayer(playerId);
