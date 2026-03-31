@@ -16,6 +16,7 @@
 #include <string>
 #include <array>
 #include <optional>
+#include <set>
 
 
 /*
@@ -97,12 +98,15 @@ public:
     void rebuildTokenBag();
     void fillFeedbackTrackFromBag();
 
-private:
-    TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
+    // ! BUG ? Why previous in private
     void syncTokenBagFromManager();
     void setTokenBag(const std::vector<TokenEffect>& nextBag);
-
     bool isActiveGoalMet() const;
+
+private:
+    TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
+    
+
 };
 
 #endif

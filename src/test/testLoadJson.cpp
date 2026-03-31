@@ -187,86 +187,18 @@ void testLoadGoal()
         std::cout << std::endl;
     }
 }
+
 void testDraw10AndResolve() {
     GameState state;
+    std::mt19937 rng(42);
 
-    std::cout << "=== Initial State ===" << std::endl;
-    std::cout << "Cohesion: " << state.params.getCohesion() << std::endl;
-    std::cout << "Cybernation: " << state.params.getCybernationLevel() << std::endl;
-    std::cout << "HR: " << state.params.getHumanRelation() << std::endl;
-    std::cout << "Tech: " << state.params.getTechnology() << std::endl;
-    std::cout << "Env: " << state.params.getEnvironment() << std::endl;
-    std::cout << "Board -> ";
-    for (int t = 0; t < GameState::NUM_TILE; t++) {
-        StackType type = state.board[t].getEffectiveType();
-        switch (type) {
-            case StackType::WILD:  std::cout << "W "; break;
-            case StackType::WASTE: std::cout << "X "; break;
-            case StackType::DEV_A: std::cout << "A "; break;
-            case StackType::DEV_B: std::cout << "B "; break;
-            default:               std::cout << "? "; break;
-        }
-    }
-    std::cout << std::endl << std::endl;
-
-    for (int i = 0; i < 10; i++) {
-        std::cout << "=== Round " << (i + 1) << " ===" << std::endl;
-
-        // Draw
-        ActionResult drawResult = GameUtility::drawDisruption(state);
-        if (!drawResult.ok()) {
-            std::cout << "  Draw failed: " << drawResult.message.type << drawResult.message.payload << std::endl;
-            continue;
-        }
-
-        const DisruptionCard& card = state.activeDisruption.value();
-        std::cout << "  Card: " << card.getName() << std::endl;
-        std::cout << "  Type: " << (card.isDisrupt() ? "disrupt" : "boost") << std::endl;
-        std::cout << "  Description: " << card.getDescription() << std::endl;
-
-        // First 5 resolve, last 5 cancel
-        if (i < 5) {
-            std::cout << "  Action: RESOLVE" << std::endl;
-
-            Action action;
-            action.playerId = 0;
-            action.type = "resolve_disruption";
-
-            if (card.getEffectCond() == EffectCondition::OR) {
-                action.params["effectIndex"] = "0";
-            }
-
-            for (const auto& [effect, value] : card.getEffects()) {
-                if (effect == DisruptionEffect::RESOURCES) {
-                    int perParam = value / 3;
-                    int remainder = value % 3;
-                    action.params["HR"] = std::to_string(perParam + remainder);
-                    action.params["Tech"] = std::to_string(perParam);
-                    action.params["Env"] = std::to_string(perParam);
-                }
-            }
-
-            ActionResult resolveResult = GameUtility::applyDisruptionEffect(state, action);
-            std::cout << "  Result: " << (resolveResult.ok() ? "SUCCESS" : "FAILED") << std::endl;
-        } else {
-            std::cout << "  Action: CANCEL" << std::endl;
-
-            ActionResult cancelResult = GameUtility::cancelDisruptionEffect(state);
-            std::cout << "  Result: " << (cancelResult.ok() ? "SUCCESS" : "FAILED")
-                      << " - " << cancelResult.message.payload << std::endl;
-        }
-
-        // Clear active disruption for next draw
-        state.activeDisruption = std::nullopt;
-
-        // Print state after
-        std::cout << "  State -> Co:" << state.params.getCohesion()
+    auto printState = [&](const std::string& label) {
+        std::cout << label << std::endl;
+        std::cout << "  Co:" << state.params.getCohesion()
                   << " Cy:" << state.params.getCybernationLevel()
                   << " HR:" << state.params.getHumanRelation()
                   << " Tech:" << state.params.getTechnology()
                   << " Env:" << state.params.getEnvironment() << std::endl;
-
-        // Print board types
         std::cout << "  Board -> ";
         for (int t = 0; t < GameState::NUM_TILE; t++) {
             StackType type = state.board[t].getEffectiveType();
@@ -278,9 +210,71 @@ void testDraw10AndResolve() {
                 default:               std::cout << "? "; break;
             }
         }
-        std::cout << std::endl << std::endl;
+        std::cout << std::endl;
+    };
+
+    auto randomCancelTiles = [&](const std::vector<int>& tiles) -> std::string {
+        if (tiles.empty()) return "";
+
+        int cancelCount = std::min((int)tiles.size(), (int)(rng() % 3)); // 0, 1, or 2
+        std::string result;
+        for (int i = 0; i < cancelCount; i++) {
+            if (!result.empty()) result += ",";
+            result += std::to_string(tiles[i]);
+        }
+        return result;
+    };
+
+    printState("=== Initial State ===");
+    std::cout << std::endl;
+
+    for (int i = 0; i < 10; i++) {
+        std::cout << "=== Round " << (i + 1) << " ===" << std::endl;
+
+        ActionResult draw = GameUtility::drawDisruption(state);
+        if (!draw.ok()) {
+            std::cout << "  Draw failed: " << draw.message.payload << std::endl;
+            continue;
+        }
+
+        const DisruptionCard& card = state.activeDisruption.value();
+        std::string category = card.getCategory();
+        std::cout << "  Card: " << card.getName()
+                  << " [" << category << "]" << std::endl;
+        std::cout << "  Desc: " << card.getDescription() << std::endl;
+        std::cout << "  Targets: ";
+        for (auto t : card.getStackTargets())
+            std::cout << t << " ";
+        std::cout << std::endl;
+
+
+        Action action;
+        action.playerId = 0;
+        action.type = "resolve_disruption";
+
+        // If the card has stack targets, generate cancel tiles
+        if (!card.getStackTargets().empty()) {
+            std::string cancel = randomCancelTiles(card.getStackTargets());
+            if (!cancel.empty()) {
+                action.params["canceltiles"] = cancel;
+                std::cout << "  Cancel tiles: " << cancel << std::endl;
+            } else {
+                std::cout << "  Cancel tiles: (none)" << std::endl;
+            }
+        }
+
+        ActionResult result = GameUtility::applyDisruptionEffect(state, action);
+        std::cout << "  Result: " << (result.ok() ? "SUCCESS" : "FAILED")
+                  << " - " << result.message.payload << std::endl;
+        printState("  After:");
+
+        state.activeDisruption = std::nullopt;
+        std::cout << std::endl;
     }
+
+    std::cout << "=== All disruption tests complete ===" << std::endl;
 }
+
 
 int main(void)
 {

@@ -25,7 +25,7 @@ class DisruptionCard {
 private:
     std::string name;
     std::string description;
-    DisruptionType type;             
+    std::string category;       
 
     // Condition
     ConditionType conditionType;      // NONE, STACK, RESOURCE
@@ -46,8 +46,7 @@ private:
     bool cancellable;
 
 public:
-    DisruptionCard() : type(DisruptionType::DISRUPT),
-                       conditionType(ConditionType::NONE),
+    DisruptionCard() : conditionType(ConditionType::NONE),
                        effectCond(EffectCondition::NONE),
                        victoryImpact(VictoryImpact::NONE),
                        cancellable(false) {}
@@ -56,7 +55,9 @@ public:
     // Getters
     const std::string&      getName()          const { return name; }
     const std::string&      getDescription()   const { return description; }
-    DisruptionType          getType()          const { return type; }
+    const std::string&      getCategory()   const { return category; }
+
+
     ConditionType           getConditionType() const { return conditionType; }
     EffectCondition         getEffectCond()    const { return effectCond; }
     VictoryImpact           getVictoryImpact() const { return victoryImpact; }
@@ -75,7 +76,9 @@ public:
     // Setters
     void setName(const std::string& n)              { name = n; }
     void setDescription(const std::string& d)       { description = d; }
-    void setType(DisruptionType t)                  { type = t; }
+    void setCategory(const std::string& c)          { category = c; }
+
+
     void setConditionType(ConditionType ct)          { conditionType = ct; }
     void setEffectCond(EffectCondition ec)           { effectCond = ec; }
     void setVictoryImpact(VictoryImpact vi)          { victoryImpact = vi; }
@@ -91,8 +94,6 @@ public:
 
     // Helpers
     bool hasTileChangeEffect() const;
-    bool isDisrupt() const { return type == DisruptionType::DISRUPT; }
-    bool isBoost()   const { return type == DisruptionType::BOOST; }
 };
 
 #endif

@@ -79,10 +79,7 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 
     card.setName(data.at("name").get<std::string>());
     card.setDescription(data.at("description").get<std::string>());
-
-    // Type: "disrupt" or "boost"
-    std::string typeStr = data.at("type").get<std::string>();
-    card.setType(typeStr == "boost" ? DisruptionType::BOOST : DisruptionType::DISRUPT);
+    card.setCategory(data.at("category").get<std::string>());
 
     // ConditionType + condition parsing
     std::string condTypeStr = data.at("conditionType").get<std::string>();
@@ -145,17 +142,16 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     else                     card.setEffectCond(EffectCondition::NONE);
 
     // Optional
-    const auto& opt = data.at("optional");
-    if (opt.is_object() && opt.contains("cost")) {
-        card.setOptionalCosts(parseEffectArray(opt.at("cost")));
-        card.setOptionalGains(parseEffectArray(opt.at("gain")));
+    if (data.contains("optional")) {
+
+        const auto& opt = data.at("optional");
+        if (opt.is_object() && opt.contains("cost")) {
+            card.setOptionalCosts(parseEffectArray(opt.at("cost")));
+            card.setOptionalGains(parseEffectArray(opt.at("gain")));
+        }
     }
 
     // Victory impact
-    std::string viStr = data.at("victoryImpact").get<std::string>();
-    if      (viStr == "Regulation")    card.setVictoryImpact(VictoryImpact::REGULATION);
-    else if (viStr == "Amplification") card.setVictoryImpact(VictoryImpact::AMPLIFICATION);
-    else                               card.setVictoryImpact(VictoryImpact::NONE);
 
     // Cancellable
     card.setCancellable(data.at("cancel").get<bool>());

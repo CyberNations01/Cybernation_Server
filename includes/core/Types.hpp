@@ -142,19 +142,10 @@ inline GamePhase strToGamePhase(const std::string& str) {
 }
 
 enum class DisruptionType {
-    DISRUPT,
-    BOOST,
     STACK,
-    RESOURCE
+    RESOURCE,
+    NONE
 };
-
-
-inline DisruptionType strtoDisruptionType(std::string &str)
-{
-    if (str == "disrupt")
-        return DisruptionType::DISRUPT;
-    return DisruptionType::BOOST;
-}
 
 enum class EffectCondition { NONE, AND, OR };
 enum class VictoryImpact { NONE, REGULATION, AMPLIFICATION };
@@ -209,6 +200,23 @@ inline DisruptionEffect strtoDisruptionEffect(const std::string &str)
     return DisruptionEffect::COHESION; // fallback
 }
 
+inline CyberParameter disruptionEffectToCyberParameter(const DisruptionEffect& eff)
+{
+    switch (eff) {
+        case DisruptionEffect::CYBERNATION:    
+            return CyberParameter::CYBERNATION_LEVEL; 
+        case DisruptionEffect::COHESION:
+            return CyberParameter::COHESION;
+        case DisruptionEffect::HUMAN_RELATION:
+            return CyberParameter::HUMAN_RELATION;
+        case DisruptionEffect::TECHNOLOGY:
+            return CyberParameter::TECHNOLOGY;
+        case DisruptionEffect::ENVIRONMENT:
+            return CyberParameter::ENVIRONMENT;
+        default:
+            return CyberParameter::CYBERNATION_LEVEL;
+    }
+}
 
 enum class ActionStatus {
     SUCCESS,            // Action executed successfully

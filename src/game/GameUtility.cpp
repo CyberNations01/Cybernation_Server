@@ -101,10 +101,6 @@ ActionResult GameUtility::drawDisruption(GameState& state)
     }};
 }
 
-/*
-    @type: "cancel", "apply"
-*/
-
 bool GameUtility::checkResourceCondition(GameState& state, ResourceCondition cond)
 {
     int LHS = state.params.getParamAmount(cond.lhs);
@@ -126,7 +122,6 @@ bool GameUtility::checkResourceCondition(GameState& state, ResourceCondition con
     }
     return false;
 }
-
 
 bool GameUtility::isStackEffect(const DisruptionEffect &e) 
 {
@@ -157,29 +152,16 @@ void GameUtility::resolveParamEffect(GameState & state,
         case DisruptionEffect::ENVIRONMENT:
             state.params.adjustParam(CyberParameter::ENVIRONMENT, delta);
             break;
+        default: 
+            state.params.adjustParam(CyberParameter::COHESION, delta);
+            break;
     }
 }
-
-bool GameUtility::resolveResourceEffect(GameState& state, 
-                                        const std::vector<std::pair<DisruptionEffect, int>>& effect,
-                                        int limit)
-{
-    int limit_counter = 0;
-    for (const auto& e: effect) {
-        resolveParamEffect(state, e);
-        limit_counter += e.second;
-        if (limit_counter > limit)
-            return false;
-    }
-    return true;
-}
-
 
 void GameUtility::changeTileStack(GameState& state, 
                                 int tilePos,
                                 StackType targetType)
 {
-    std::cout << "Tile Pos: " << tilePos << "Stack Type: " << stackTypeToStr(targetType) << std::endl;;
     CardManager<Stack>* StackManager;
     switch (targetType) {
         case StackType::WILD:
@@ -241,161 +223,169 @@ void GameUtility::changeTileStack(GameState& state,
     }
 }
 
+
+std::set<int> parseIntSet(const std::string& s) {
+    std::set<int> result;
+    std::istringstream ss(s);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        result.insert(std::stoi(token));
+    }
+    return result;
+}
+
+
 ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& action)
 {
-
-    const DisruptionCard& card = state.activeDisruption.value();
-
     if (!state.activeDisruption.has_value()) {
-        return {ActionStatus::INVALID_ACTION, {
-            "resolve_disruption",
-            "Disruption Card is not drawn"
-        }};
+        return ActionResult::invalid("Disruption card is not drawn");
     }
 
+    // ! Disruption Card  
+    DisruptionCard &card = state.activeDisruption.value();
+    std::string category = card.getCategory();
+    const auto& tiles = card.getStackTargets();
+    std::vector<std::pair<DisruptionEffect, int>> cancelCosts = card.getCosts();
 
-    // ─── Step 1: Check preconditions ────────────────────────────────
-    // ResourceCondition cards only fire if the param comparison holds
-    if (card.getConditionType() == ConditionType::RESOURCE) {
-        const auto& condition = card.getResourceCondition().value();
-        if (!checkResourceCondition(state, condition)) {
-            
-            return {ActionStatus::SUCCESS, {
-                "resolve_disruption",
-                "Disruption applied"
-            }};
-        }
-    }
+    std::vector<int> effectiveStackTarget;
 
-    // ─── Step 2: Filter target tiles by stack condition ─────────────
-    // StackCondition cards only affect tiles whose effective type matches
-    std::vector<int> affectedTiles;
-
-    if (card.getConditionType() == ConditionType::STACK) {
-        const StackCondition& condition = card.getStackCondition().value();
-        for (int tilePos : card.getStackTargets()) {
-            StackType tileType = state.board[tilePos].getEffectiveType();
-            for (const StackType& requiredType : condition.stackTypes) {
-                if (tileType == requiredType) {
-                    affectedTiles.push_back(tilePos);
-                    break;
-                }
-            }
-        }
-    } else {
-        affectedTiles = card.getStackTargets();
-    }
-    std::cout << "  DEBUG affectedTiles: ";
-    for (int t : affectedTiles) std::cout << t << " ";
-    std::cout << std::endl;
+    const auto& clientReq = action.params;
 
 
-    // ─── Step 3: Determine which effects to apply ───────────────────
-    // OR: player picks one effect; AND/NONE: all effects apply in order
-    const auto& allEffects = card.getEffects();
-    std::vector<std::pair<DisruptionEffect, int>> chosenEffects;
-
-    if (card.getEffectCond() == EffectCondition::OR) {
-        int chosenIndex = std::stoi(action.params.at("effectIndex"));
-        if (chosenIndex >= 0 && chosenIndex < static_cast<int>(allEffects.size()))
-            chosenEffects.push_back(allEffects[chosenIndex]);
-    } else {
-        chosenEffects = allEffects;
-    }
-
-    for (const auto& [effect, value] : chosenEffects)
-        std::cout << "  DEBUG effect: " << static_cast<int>(effect) << " value: " << value << std::endl;
-
-    for (const auto& [effect, value] : allEffects)
-        std::cout << "  DEBUG all effect: " << static_cast<int>(effect) << " value: " << value << std::endl;
-
-    // ─── Step 4: Apply effects ──────────────────────────────────────
-    // Separate into param effects (applied immediately) and
-    // tile effects (applied to each affected tile afterwards)
-    std::vector<std::pair<DisruptionEffect, int>> tileEffects;
-
-    for (const auto& [effect, value] : chosenEffects) {
-
-        if (isStackEffect(effect)) {
-            tileEffects.push_back({effect, value});
-            continue;
+    auto tryCancelTiles = [&](const DisruptionCard& card,
+                             const std::unordered_map<std::string, std::string> clientReq,
+                             const std::vector<int>& stackTarget,
+                             const std::vector<std::pair<DisruptionEffect, int>>& cancelCosts,
+                             std::vector<int>& effectiveStackTarget) -> std::optional<ActionResult>
+    {
+        if (clientReq.find("canceltiles") == clientReq.end()) {
+            for (auto t : stackTarget)
+                effectiveStackTarget.push_back(t);
+            return std::nullopt;
         }
 
-        switch (effect) {
+        if (!card.isCancellable())
+            return ActionResult::invalid("Card is not cancellable\n");
 
-            // Player distributes N total resources across params
-            case DisruptionEffect::RESOURCES: {
-                std::vector<std::pair<DisruptionEffect, int>> distribution;
-                for (const auto& [paramKey, paramVal] : action.params) {
-                    if (paramKey == "effectIndex") continue;
-                    try {
-                        distribution.push_back({strtoDisruptionEffect(paramKey), std::stoi(paramVal)});
-                    } catch (const std::exception&) {
-                        std::cerr << "Cannot parse resource param: " << paramKey << std::endl;
+        auto cancelTiles = parseIntSet(clientReq.at("canceltiles"));
+        for (auto t : stackTarget) {
+            if (cancelTiles.find(t) == cancelTiles.end())
+                effectiveStackTarget.push_back(t);
+        }
+
+        std::pair<DisruptionEffect, int> costPair = cancelCosts[0];
+        int costOnCancel = (stackTarget.size() - effectiveStackTarget.size()) * costPair.second;
+        CyberParameter costParam = disruptionEffectToCyberParameter(costPair.first);
+
+        if (state.params.getParamAmount(costParam) < std::abs(costOnCancel))
+            return ActionResult::invalid("Not enough resources to cancel");
+
+        // ! Apply cancel cost to GameState
+        resolveParamEffect(state, {costPair.first, costOnCancel});
+
+        return std::nullopt;
+    }; 
+
+    if (category == "CatA") {
+        auto err = tryCancelTiles(card, clientReq, tiles, cancelCosts, effectiveStackTarget);
+        if (err.has_value())
+            return err.value();
+    }
+    
+    else if (category == "CatB") {
+        if (card.getConditionType() == ConditionType::NONE) {
+            for (auto e : card.getEffects())
+                resolveParamEffect(state, e);
+        } else {
+            auto err = tryCancelTiles(card, clientReq, tiles, cancelCosts, effectiveStackTarget);
+            if (err.has_value())
+                return err.value();
+
+            if (card.getConditionType() == ConditionType::STACK) {
+                auto err = tryCancelTiles(card, clientReq, tiles, cancelCosts, effectiveStackTarget);
+                if (err.has_value())
+                    return err.value();
+            } else {
+                if (card.getResourceCondition().has_value()) {
+                    ResourceCondition cond = card.getResourceCondition().value();
+                    if (checkResourceCondition(state, cond)) {
+                        for (auto e : card.getEffects())
+                            resolveParamEffect(state, e);
                     }
+
                 }
-                resolveResourceEffect(state, distribution, value);
-                break;
             }
+        } 
+    }
 
-            case DisruptionEffect::DRAW_GOAL:
-                state.currentGoal = state.goalManager.draw();
-                break;
+    else if (category == "CatC" || category == "CatD") {
+        auto err = tryCancelTiles(card, clientReq, tiles, cancelCosts, effectiveStackTarget);
+        if (err.has_value())
+            return err.value();
 
-            case DisruptionEffect::SWAP_GOAL:
-                state.currentGoal = state.goalManager.getDeck()[state.currentGoal.getReverseGoalId()];
-                break;
-
-            case DisruptionEffect::TOKEN:
-                // TODO: draw feedback tokens from bag
-                break;
-
-            case DisruptionEffect::MOVE_PEOPLE:
-                // TODO: reposition people token
-                break;
-
-            case DisruptionEffect::CAP_ENV:
-                // TODO: set environment cap for this turn
-                break;
-
-            case DisruptionEffect::IGNORE_COHESION_EFFECT:
-                // TODO: disable cohesion capping for this turn
-                break;
-
-            // Standard param adjustment (Co, HR, Cy, Tech, Env)
-            default: {
-                int amount = value;
-                if (card.getConditionType() == ConditionType::STACK)
-                    amount *= static_cast<int>(affectedTiles.size());
-                resolveParamEffect(state, {effect, amount});
-                break;
+        if (card.getConditionType() == ConditionType::STACK && 
+            card.getStackCondition().has_value()) {
+            std::set<StackType> stackTypeAffected(
+                                            card.getStackCondition().value().stackTypes.begin(),
+                                            card.getStackCondition().value().stackTypes.end()
+                                            );
+            std::vector<int> filteredTarget;
+            for (auto e : effectiveStackTarget) {
+                if (stackTypeAffected.count(state.board[e].getEffectiveType()))
+                    filteredTarget.push_back(e);
             }
+            effectiveStackTarget = filteredTarget;
         }
     }
 
-    // ─── Step 5: Apply tile-type changes to affected tiles ──────────
-    std::cout << "  DEBUG tileEffects size: " << tileEffects.size() << std::endl;
-    for (const auto& [effect, value] : tileEffects) {
-        for (int tilePos : affectedTiles) {
-            switch (effect) {
-                case DisruptionEffect::TURN_WILD:
-                    changeTileStack(state, tilePos, StackType::WILD);    break;
-                case DisruptionEffect::TURN_WASTE:
-                    changeTileStack(state, tilePos, StackType::WASTE);   break;
-                case DisruptionEffect::TURN_DEV_A:
-                    changeTileStack(state, tilePos, StackType::DEV_A);   break;
-                case DisruptionEffect::TURN_DEV_B:
-                    changeTileStack(state, tilePos, StackType::DEV_B);   break;
-                default:
-                    std::cerr << "Unknown tile effect: " << static_cast<int>(effect) << std::endl;
-                    return {ActionStatus::UNKNOWN_ERROR, {
-                        "resolve_disruption",
-                        "Cannot Apply Tile Effect"
-                    }};
-            }
+    else if (category == "CatE") {
+        if (clientReq.find("cancel") != clientReq.end()) {
+            state.currentGoal = state.goalManager.draw();
+        } else {
+
+            // ! One Cost only, therefore hard code for now
+            std::pair<DisruptionEffect, int> costPair = cancelCosts[0];
+            CyberParameter costParam = disruptionEffectToCyberParameter(costPair.first);
+
+            if (state.params.getParamAmount(costParam) < std::abs(costPair.second))
+                return ActionResult::invalid("Not enough resources to cancel");
+            resolveParamEffect(state, costPair);
         }
     }
 
+    // ! Boost: Gain Resource  
+    else if (category == "CatF") {
+        for (auto e : card.getEffects())
+            resolveParamEffect(state, e);
+    }
+
+    // ! Apply stack effect
+    if (!effectiveStackTarget.empty()) {
+
+        for (auto t : effectiveStackTarget) {
+            for (auto& e : card.getEffects()) {
+                switch (e.first) {
+                    case DisruptionEffect::TURN_WASTE:
+                        changeTileStack(state, t, StackType::WASTE);
+                        break;
+                    case DisruptionEffect::TURN_WILD:
+                        changeTileStack(state, t, StackType::WILD);
+                        break;
+                    // Param effects: apply once per matching tile
+                    case DisruptionEffect::COHESION:
+                    case DisruptionEffect::HUMAN_RELATION:
+                    case DisruptionEffect::CYBERNATION:
+                    case DisruptionEffect::TECHNOLOGY:
+                    case DisruptionEffect::ENVIRONMENT:
+                        resolveParamEffect(state, e);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+    }
     return ActionResult::success(ActionMessage("resolve_disruption", "Disruption is resolved"));
 }
 
