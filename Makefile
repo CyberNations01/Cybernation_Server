@@ -2,8 +2,8 @@ CXX      = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -I./includes
 SRCDIR   = src
 OBJDIR   = obj
-TARGET   = out/testLoadJson
-ADAPT_TARGET = out/testAdaptSimulation
+TARGET   = out/ep
+
  
 SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/core/FeedbackPool.cpp \
@@ -21,7 +21,7 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/TraversePhaseHandler.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
           $(SRCDIR)/game/GameUtility.cpp \
-          $(SRCDIR)/test/testLoadJson.cpp
+          $(SRCDIR)/test/EnvisionPhaseTest.cpp
 
  
 OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))

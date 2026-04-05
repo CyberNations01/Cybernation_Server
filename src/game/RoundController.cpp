@@ -43,6 +43,10 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
 
     // 4. Handle "pass" 
     if (action.isPass()) {
+        // Addition: In envision phase, pass is also the choice of players' action.
+        if (state.currentPhase == GamePhase::ENVISION) {
+        state.recordEnvisionActionAndAdvanceCost(true);
+        }
         passedPlayers.insert(action.playerId);
 
         // Check if phase is now complete
@@ -66,6 +70,11 @@ ActionResult RoundController::processAction(const Action& action, GameState& sta
     //    (the current player can act again on their NEXT turn in the cycle,
     //     unless they pass)
     if (result.ok()) {
+        // addition: Only envision phase needs action cost tracker
+        if (state.currentPhase == GamePhase::ENVISION){
+            state.recordEnvisionActionAndAdvanceCost(false);
+        }
+
         advanceTurn(state);
     }
 

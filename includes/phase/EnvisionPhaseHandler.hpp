@@ -33,6 +33,7 @@ private:
     
     ActionResult handleConnect(const Action& action, GameState& state);
     ActionResult handleSteer(const Action& action, GameState& state);
+    ActionResult handleDrawFeedbackTrack(const Action& action, GameState& state);
     
 
 private:

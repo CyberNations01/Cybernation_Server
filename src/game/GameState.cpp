@@ -74,7 +74,11 @@ GameState::GameState() {
     }
 
     rebuildTokenBag();
-    fillFeedbackTrackFromBag();
+    
+    actionCostIndex = 0;
+    envisionActionsTakenThisCycle = 0;
+    feedbackTrackDrawnThisEnvision = false;
+
     adaptTrack.clear();
     adaptCursor = 0;
 }
@@ -127,35 +131,31 @@ TokenEffect GameState::mapStackTypeToFeedbackToken(StackType type) const{
 }
 
 void GameState::rebuildTokenBag() {
-    tokenBag.clear();
-    // Rebuild bag from current board state by drawing matching tokens from reserve.
-    for (const auto& tile : board) {
-        TokenEffect token = mapStackTypeToFeedbackToken(tile.getEffectiveType());
-        if (token == TokenEffect::UNKNOWN){
-            continue;
-        }
-        if (pool.draw(token)){
-            tokenBag.push_back(token);
-        }
-        // If reserve is empty for that token, we silently skip for now.
-        // Later you can change this to logging or error handling.
-    }
-
-    // Shuffle bag
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::shuffle(tokenBag.begin(), tokenBag.end(), gen);
+    tokenManager.rebuildBagFromBoard(board, pool);
+    syncTokenBagFromManager();
 }
 
 void GameState::fillFeedbackTrackFromBag(){
-    for(int i = 0; i < FEEDBACK_TRACK_SIZE; ++i){
-        if (!tokenBag.empty()){
-            feedbackTrack[i] = tokenBag.back();
-            tokenBag.pop_back();
-        }else{
+    bool ok = tokenManager.drawTrackFromBag(FEEDBACK_TRACK_SIZE);
+    if (ok) {
+        const auto & nextTrack = tokenManager.getTrack();
+        int i = 0;
+
+        for(; i < static_cast<int>(nextTrack.size()) && i < FEEDBACK_TRACK_SIZE; ++i){
+            feedbackTrack[i] = nextTrack[i];
+        }
+
+        for (; i < FEEDBACK_TRACK_SIZE; ++i){
+            feedbackTrack[i] = TokenEffect::UNKNOWN;
+        }
+    }else{
+        for (int i = 0; i < FEEDBACK_TRACK_SIZE; ++i){
             feedbackTrack[i] = TokenEffect::UNKNOWN;
         }
     }
+
+    syncTokenBagFromManager();
+    feedbackTrackDrawnThisEnvision = true;
 }
 
 void GameState::syncTokenBagFromManager() {
@@ -165,6 +165,35 @@ void GameState::syncTokenBagFromManager() {
 void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag) {
     tokenManager.setBag(nextBag);
     syncTokenBagFromManager();
+}
+
+int GameState::getCurrentAdditionalActionCost() const {
+    return actionCostIndex;
+}
+
+void GameState::recordEnvisionActionAndAdvanceCost(bool isPass) {
+    (void)isPass;
+    // pass also indicates the player take one action
+    envisionActionsTakenThisCycle++;
+
+    if (envisionActionsTakenThisCycle >= NUM_PLAYERS) {
+        envisionActionsTakenThisCycle = 0;
+        actionCostIndex++;
+    }
+}
+
+void GameState::resetEnvisionPhaseState() {
+    actionCostIndex = 0;
+    envisionActionsTakenThisCycle = 0;
+    feedbackTrackDrawnThisEnvision = false;
+}
+
+bool GameState::hasDrawnFeedbackTrackThisEnvision() const {
+    return feedbackTrackDrawnThisEnvision;
+}
+
+void GameState::markFeedbackTrackDrawn() {
+    feedbackTrackDrawnThisEnvision = true;
 }
 
 bool GameState::isActiveGoalMet() const {
@@ -267,11 +296,28 @@ nlohmann::json GameState::toJson() const {
         {"totalRemaining", pool.getPoolSize()}
     };
 
+    // Feedback track
+    j["feedbackTrack"] = nlohmann::json::array();
+    for (int i = 0; i < FEEDBACK_TRACK_SIZE; ++i){
+        j["feedbackTrack"].push_back(feedbackTrack[i]);
+    }
+
+    // Token bag
+    j["tokenBagCount"] = static_cast<int>(tokenBag.size());
+
+    j["envision"] = {
+        {"actionCostIndex", actionCostIndex},
+        {"additionalActionCost", getCurrentAdditionalActionCost()},
+        {"actionsTakenThisCycle", envisionActionsTakenThisCycle},
+        {"feedbackTrackDrawn", feedbackTrackDrawnThisEnvision}
+    };
+
     j["adapt"] = {
         {"trackSize", static_cast<int>(adaptTrack.size())},
         {"cursor", adaptCursor},
         {"complete", (!adaptTrack.empty() && adaptCursor >= static_cast<int>(adaptTrack.size()))}
     };
+
 
     // Players
     j["players"] = nlohmann::json::array();

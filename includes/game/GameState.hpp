@@ -72,6 +72,18 @@ public:
     
     std::optional<DisruptionCard> activeDisruption = std::nullopt;
 
+    // --- Envision phase action-cost tracker ---
+    int actionCostIndex = 0;
+    int envisionActionsTakenThisCycle = 0;
+    bool feedbackTrackDrawnThisEnvision = false;
+
+    // --- Envision phase helpers ---
+    int getCurrentAdditionalActionCost() const;
+    void recordEnvisionActionAndAdvanceCost(bool isPass);
+    void resetEnvisionPhaseState();
+    bool hasDrawnFeedbackTrackThisEnvision() const;
+    void markFeedbackTrackDrawn();
+
     // --- Adapt phase runtime state ---
     std::vector<TokenEffect> adaptTrack;       // feedback tokens in order
     int                      adaptCursor = 0;  // next token index to resolve
@@ -97,7 +109,6 @@ public:
     void rebuildTokenBag();
     void fillFeedbackTrackFromBag();
 
-private:
     TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
     void syncTokenBagFromManager();
     void setTokenBag(const std::vector<TokenEffect>& nextBag);
