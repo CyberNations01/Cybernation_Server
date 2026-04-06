@@ -344,33 +344,58 @@
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // CATEGORY F: Pure Param Effect (boost)
-  //   - AND: all effects apply in order, no player choice
-  //   - Resolver: resolveParamEffect()
+  // CATEGORY F: Param + Resource Distribution (boost)
+  //   - Apply fixed param effects first, then distribute N resources
+  //   - Client sends: HR=3, Tech=1, Env=1 etc (must sum to N)
+  //   - Resolver: resolveParamEffect() + resolveResourceEffect()
   // ═══════════════════════════════════════════════════════════════
 
   {
     "name": "REBIRTH_OF_COMMUNITY_1",
-    "description": "Gain 2 Cohesion, then gain 5 Relationships",
+    "description": "Gain 2 Cohesion, then gain 5 resources distributed across params",
     "type": "boost",
     "conditionType": "none",
     "condition": {},
     "stackTarget": [],
-    "effect": [{"Co": 2}, {"HR": 5}],
+    "effect": [{"Co": 2}, {"Resources": 5}],
     "cost": [],
     "effectCond": "and",
     "cancel": false
   },
   {
     "name": "REBIRTH_OF_COMMUNITY_2",
-    "description": "Gain 2 Cohesion, then gain 5 Relationships",
+    "description": "Gain 2 Cohesion, then gain 5 resources distributed across params",
     "type": "boost",
     "conditionType": "none",
     "condition": {},
     "stackTarget": [],
-    "effect": [{"Co": 2}, {"HR": 5}],
+    "effect": [{"Co": 2}, {"Resources": 5}],
     "cost": [],
     "effectCond": "and",
+    "cancel": false
+  },
+  {
+    "name": "WINDFALL_1",
+    "description": "Gain 10 resources distributed across params",
+    "type": "boost",
+    "conditionType": "none",
+    "condition": {},
+    "stackTarget": [],
+    "effect": [{"Resources": 10}],
+    "cost": [],
+    "effectCond": "",
+    "cancel": false
+  },
+  {
+    "name": "WINDFALL_2",
+    "description": "Gain 10 resources distributed across params",
+    "type": "boost",
+    "conditionType": "none",
+    "condition": {},
+    "stackTarget": [],
+    "effect": [{"Resources": 10}],
+    "cost": [],
+    "effectCond": "",
     "cancel": false
   },
 
@@ -630,39 +655,7 @@
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // CATEGORY K: Resource Distribution (boost)
-  //   - Player distributes N total points across params
-  //   - Client sends: HR=3, Tech=4, Env=3 etc (must sum to N)
-  //   - Resolver: resolveResourceEffect()
-  // ═══════════════════════════════════════════════════════════════
-
-  {
-    "name": "WINDFALL_1",
-    "description": "Gain 10 resources distributed across params",
-    "type": "boost",
-    "conditionType": "none",
-    "condition": {},
-    "stackTarget": [],
-    "effect": [{"Resources": 10}],
-    "cost": [],
-    "effectCond": "",
-    "cancel": false
-  },
-  {
-    "name": "WINDFALL_2",
-    "description": "Gain 10 resources distributed across params",
-    "type": "boost",
-    "conditionType": "none",
-    "condition": {},
-    "stackTarget": [],
-    "effect": [{"Resources": 10}],
-    "cost": [],
-    "effectCond": "",
-    "cancel": false
-  },
-
-  // ═══════════════════════════════════════════════════════════════
-  // CATEGORY M: Trade (boost)
+  // CATEGORY K: Trade (boost)
   //   - Swap 1 resource for 1 resource
   //   - Client sends: give_param, receive_param
   //   - Resolver: tradeForDisruption() (already implemented)

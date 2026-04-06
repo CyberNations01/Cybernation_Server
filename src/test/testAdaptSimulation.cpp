@@ -47,6 +47,17 @@ void forceAdaptState(GameRoom& room, const std::vector<TokenEffect>& track) {
     state.tokenManager.clearTrack();
     state.setTokenBag(track);
 }
+
+DisruptionCard mustFindDisruptionCard(const GameState& state, const std::string& name) {
+    for (const auto& card : state.disruptionManager.getDeck()) {
+        if (card.getName() == name) return card;
+    }
+    for (const auto& card : state.disruptionManager.getDiscard()) {
+        if (card.getName() == name) return card;
+    }
+    std::cerr << "[FATAL] disruption card not found: " << name << std::endl;
+    std::exit(2);
+}
 }
 
 int main() {
@@ -231,6 +242,33 @@ int main() {
     ActionResult applySuccessRes = dispatch(room, applySuccess, "apply_disruption_success");
     expectTrue(applySuccessRes.ok(), "disruption apply path works via GameUtility");
     expectTrue(!room.getState().activeDisruption.has_value(), "apply path clears active disruption");
+
+    // --- 4b) new disruption routes in ADOPT ---
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    room.getState().activeDisruption = std::nullopt;
+    Action adoptDraw = makeAction(room, "draw_disruption");
+    ActionResult adoptDrawRes = dispatch(room, adoptDraw, "adopt_draw_disruption");
+    expectTrue(adoptDrawRes.ok(), "ADOPT draw_disruption route works");
+    expectTrue(room.getState().activeDisruption.has_value(), "ADOPT draw creates active disruption");
+
+    Action adoptCancel = makeAction(room, "cancel_disruption");
+    ActionResult adoptCancelRes = dispatch(room, adoptCancel, "adopt_cancel_disruption");
+    expectTrue(adoptCancelRes.ok(), "ADOPT cancel_disruption route works");
+    expectTrue(!room.getState().activeDisruption.has_value(), "ADOPT cancel clears active disruption");
+
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    room.getState().params.setCybernationLevel(10);
+    room.getState().activeDisruption = mustFindDisruptionCard(room.getState(), "HURRICANE_1");
+    Action adoptResolve = makeAction(room, "resolve_disruption");
+    ActionResult adoptResolveRes = dispatch(room, adoptResolve, "adopt_resolve_disruption");
+    expectTrue(adoptResolveRes.ok(), "ADOPT resolve_disruption route works");
+    expectTrue(!room.getState().activeDisruption.has_value(), "ADOPT resolve clears active disruption");
+
+    forceAdaptState(room, {TokenEffect::TURN_WILD});
+    room.getState().activeDisruption = std::nullopt;
+    Action adoptResolveNoActive = makeAction(room, "resolve_disruption");
+    ActionResult adoptResolveNoActiveRes = dispatch(room, adoptResolveNoActive, "adopt_resolve_without_draw");
+    expectTrue(!adoptResolveNoActiveRes.ok(), "ADOPT resolve requires active disruption");
 
     // --- 5) trade branches ---
     forceAdaptState(room, {TokenEffect::TURN_WILD});

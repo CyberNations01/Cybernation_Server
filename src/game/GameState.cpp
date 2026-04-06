@@ -232,6 +232,7 @@ nlohmann::json GameState::toJson() const {
     j["currentPlayerId"] = currentPlayerId;
     j["firstPlayerId"]   = firstPlayerId;
     j["gameOver"]        = gameOver;
+    j["ignoreCohesionLossThisRound"] = ignoreCohesionLossThisRound;
     j["activeGoal"] = {
         {"id", currentGoal.getId()},
         {"name", currentGoal.getName()},
@@ -271,6 +272,12 @@ nlohmann::json GameState::toJson() const {
         {"trackSize", static_cast<int>(adaptTrack.size())},
         {"cursor", adaptCursor},
         {"complete", (!adaptTrack.empty() && adaptCursor >= static_cast<int>(adaptTrack.size()))}
+    };
+
+    j["traverse"] = {
+        {"disruptionDrawn", traverseDisruptionDrawn},
+        {"disruptionHandled", traverseDisruptionHandled},
+        {"walkCompleted", traverseWalkCompleted}
     };
 
     // Players

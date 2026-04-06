@@ -127,6 +127,7 @@ void RoundController::advancePhase(GameState& state) {
 
 void RoundController::advanceRound(GameState& state) {
     state.currentRound++;
+    state.ignoreCohesionLossThisRound = false;
 
     if (state.currentRound > state.maxRounds) {
         state.gameOver = true;
@@ -144,6 +145,9 @@ void RoundController::advanceRound(GameState& state) {
 }
 
 void RoundController::resetPhase(GameState& state) {
+    state.traverseDisruptionDrawn = false;
+    state.traverseDisruptionHandled = false;
+    state.traverseWalkCompleted = false;
     passedPlayers.clear();
     buildTurnOrder(state.firstPlayerId);
     state.currentPlayerId = getCurrentPlayerId();

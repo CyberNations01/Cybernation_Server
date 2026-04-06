@@ -78,6 +78,21 @@ ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
     if (action.type == "cancel_disruption_effect") {
         return handleCancelDisruptionEffect(action, state);
     }
+    // Align Adopt with Traverse disruption flow:
+    // draw -> resolve -> cancel
+    if (action.type == "draw_disruption") {
+        return GameUtility::drawDisruption(state);
+    }
+    if (action.type == "resolve_disruption") {
+        ActionResult res = GameUtility::applyDisruptionEffect(state, action);
+        if (res.ok()) {
+            state.activeDisruption = std::nullopt;
+        }
+        return res;
+    }
+    if (action.type == "cancel_disruption") {
+        return GameUtility::cancelDisruptionEffect(state);
+    }
     if (action.type == "trade") {
         return handleTrade(action, state);
     }
@@ -253,16 +268,14 @@ ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& actio
     for (int i = 0; i < times; ++i) {
         state.activeDisruption = *card;
 
-        ActionResult utilResult = (decision == "cancel")
-            ? GameUtility::cancelDisruptionEffect(state)
-            : GameUtility::applyDisruptionEffect(state, action);
+        // Reuse the same disruption routes exposed by this phase
+        // to keep behavior aligned with draw/resolve/cancel actions.
+        Action routed = action;
+        routed.type = (decision == "cancel") ? "cancel_disruption" : "resolve_disruption";
+        ActionResult utilResult = handle(routed, state);
 
         if (!utilResult.ok()) {
             return fail(utilResult.status, utilResult.message.payload);
-        }
-
-        if (decision == "apply") {
-            state.activeDisruption = std::nullopt;
         }
 
         details.push_back({
@@ -312,6 +325,9 @@ ActionResult AdoptPhaseHandler::applyFeedbackEffect(TokenEffect effect, int tile
             return ActionResult::success(ActionMessage("adapt_effect_applied", R"({"effect":"TURN_WASTE"})"));
         }
         case TokenEffect::LOSE_COHESION:
+            if (state.ignoreCohesionLossThisRound) {
+                return ActionResult::success(ActionMessage("adapt_effect_applied", R"({"effect":"LOSE_COHESION","delta":0,"blocked":true})"));
+            }
             state.params.adjustParam(CyberParameter::COHESION, -2);
             return ActionResult::success(ActionMessage("adapt_effect_applied", R"({"effect":"LOSE_COHESION","delta":-2})"));
         case TokenEffect::SOLVE_DISRUPTION:

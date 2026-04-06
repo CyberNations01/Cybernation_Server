@@ -69,6 +69,7 @@ public:
     int       firstPlayerId     = 0;  // Player who goes first this round
     int       currentPlayerId   = 0;  // Whose turn it is right now
     bool      gameOver          = false;
+    bool      ignoreCohesionLossThisRound = false; // Set by IgnoreCohesionEffect
     Goal      currentGoal;
     
     std::optional<DisruptionCard> activeDisruption = std::nullopt;
@@ -76,6 +77,11 @@ public:
     // --- Adapt phase runtime state ---
     std::vector<TokenEffect> adaptTrack;       // feedback tokens in order
     int                      adaptCursor = 0;  // next token index to resolve
+
+    // --- Traverse phase runtime state ---
+    bool traverseDisruptionDrawn = false;
+    bool traverseDisruptionHandled = false;
+    bool traverseWalkCompleted = false;
 
     // --- Constructor ---
     GameState();
