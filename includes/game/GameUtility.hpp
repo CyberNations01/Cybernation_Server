@@ -1,5 +1,5 @@
-#ifndef DISRUPTION_RESOLVER_HPP
-#define DISRUPTION_RESOLVER_HPP
+#ifndef GAME_UTILITY_HPP
+#define GAME_UTILITY_HPP
 #include "core/Types.hpp"
 #include "core/ActionResult.hpp"
 #include "core/Action.hpp"

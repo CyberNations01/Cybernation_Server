@@ -97,8 +97,10 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     } else if (condTypeStr == "resource") {
         card.setConditionType(ConditionType::RESOURCE);
         ResourceCondition rc;
-        rc.lhs     = strToCyberParameter(data.at("condition").at("lhs").get<std::string>());
-        rc.rhs     = strToCyberParameter(data.at("condition").at("rhs").get<std::string>());
+        if (parseCyberParameter(data.at("condition").at("lhs").get<std::string>(), rc.lhs) ||
+            parseCyberParameter(data.at("condition").at("rhs").get<std::string>(), rc.rhs)) {
+                std::cerr << " Cannot parse string to CyberParameter" << std::endl;
+        }
         std::string cmp = data.at("condition").at("compare").get<std::string>();
         if      (cmp == "GT") rc.compare = comparator::GT;
         else if (cmp == "GE") rc.compare = comparator::GE;
@@ -134,12 +136,6 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 
     // Costs
     card.setCosts(parseEffectArray(data.at("cost")));
-
-    // Effect condition
-    std::string ecStr = data.at("effectCond").get<std::string>();
-    if      (ecStr == "and") card.setEffectCond(EffectCondition::AND);
-    else if (ecStr == "or")  card.setEffectCond(EffectCondition::OR);
-    else                     card.setEffectCond(EffectCondition::NONE);
 
     // Optional
     if (data.contains("optional")) {

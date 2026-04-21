@@ -108,9 +108,6 @@ public:
     void syncTokenBagFromManager();
     void setTokenBag(const std::vector<TokenEffect>& nextBag);
     bool isActiveGoalMet() const;
-
-private:
-    TokenEffect mapStackTypeToFeedbackToken(StackType type) const;
     
 
 };

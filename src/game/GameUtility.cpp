@@ -1,9 +1,6 @@
 #include "game/GameUtility.hpp"
 #include <sstream>
 
-namespace {
-}
-
 nlohmann::json 
 GameUtility::pathResultToJson(const int& tile, const int& side, 
                 const std::vector<std::string> & resources, 
@@ -236,7 +233,6 @@ std::set<int> parseIntSet(const std::string& s) {
     }
     return result;
 }
-
 
 ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& action)
 {
@@ -651,7 +647,6 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
     }
     return ActionResult::success(ActionMessage("resolve_disruption", "Disruption is resolved"));
 }
-
 
 ActionResult GameUtility::cancelDisruptionEffect(GameState& state)
 {

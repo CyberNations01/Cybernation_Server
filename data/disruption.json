@@ -8,7 +8,6 @@
         "stackTarget": [0, 1, 5, 8, 10],
         "effect": [{"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -20,7 +19,6 @@
         "stackTarget": [0, 3, 6, 7, 9],
         "effect": [{"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -32,7 +30,6 @@
         "stackTarget": [0, 2, 3, 4],
         "effect": [{"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -44,7 +41,6 @@
         "stackTarget": [0, 1, 5, 6],
         "effect": [{"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -56,7 +52,6 @@
         "stackTarget": [0, 5, 6, 7, 10],
         "effect": [{"TurnWild": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -68,7 +63,6 @@
         "stackTarget": [0, 2, 3, 8, 9],
         "effect": [{"TurnWild": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -80,7 +74,6 @@
         "stackTarget": [0, 1, 2, 4],
         "effect": [{"TurnWild": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -92,7 +85,6 @@
         "stackTarget": [0, 3, 5, 6],
         "effect": [{"TurnWild": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
 
@@ -106,7 +98,6 @@
         "stackTarget": [],
         "effect": [{"Co": -2}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -118,7 +109,6 @@
         "stackTarget": [],
         "effect": [{"Co": -2}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -130,7 +120,6 @@
         "stackTarget": [],
         "effect": [{"Co": -2}],
         "cost": [{"HR": -2}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -142,7 +131,6 @@
         "stackTarget": [],
         "effect": [{"Co": -2}],
         "cost": [{"HR": -2}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -154,7 +142,6 @@
         "stackTarget": [],
         "effect": [{"Co": -2}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -166,7 +153,6 @@
         "stackTarget": [],
         "effect": [{"Co": -2}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -178,7 +164,6 @@
         "stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         "effect": [{"Co": -2}],
         "cost": [{"Co": -2}],
-        "effectCond": "",
         "cancel": true
     },
     {
@@ -190,7 +175,6 @@
         "stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         "effect": [{"Co": -2}],
         "cost": [{"Cy": -1}],
-        "effectCond": "",
         "cancel": true
     },
 
@@ -205,7 +189,6 @@
         "stackTarget": [0],
         "effect": [{"Co": -1}, {"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "and",
         "cancel": true
     },
     {
@@ -217,7 +200,6 @@
         "stackTarget": [1, 2, 3, 4, 5, 6],
         "effect": [{"Co": -1}, {"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "and",
         "cancel": true
     },
     {
@@ -229,7 +211,6 @@
         "stackTarget": [7, 8, 9, 10],
         "effect": [{"Co": -1}, {"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
-        "effectCond": "and",
         "cancel": true
     },
 
@@ -247,7 +228,6 @@
     "stackTarget": [0],
     "effect": [{"TurnWaste": 1}],
     "cost": [{"Cy": -1}],
-    "effectCond": "",
     "cancel": true
   },
   {
@@ -259,7 +239,6 @@
     "stackTarget": [1, 2, 3, 4, 5, 6],
     "effect": [{"TurnWaste": 1}],
     "cost": [{"Cy": -1}],
-    "effectCond": "",
     "cancel": true
   },
   {
@@ -271,7 +250,6 @@
     "stackTarget": [7, 8, 9, 10],
     "effect": [{"TurnWaste": 1}],
     "cost": [{"Cy": -1}],
-    "effectCond": "",
     "cancel": true
   },
 
@@ -290,7 +268,6 @@
     "stackTarget": [],
     "effect": [{"SwapGoal": 1}],
     "cost": [{"Cy": -2}],
-    "effectCond": "",
     "cancel": true
   },
   {
@@ -302,7 +279,6 @@
     "stackTarget": [],
     "effect": [{"SwapGoal": 1}],
     "cost": [{"Cy": -2}],
-    "effectCond": "",
     "cancel": true
   },
   {
@@ -314,7 +290,6 @@
     "stackTarget": [],
     "effect": [{"DrawGoal": 1}],
     "cost": [{"Cy": -2}],
-    "effectCond": "",
     "cancel": true
   },
 
@@ -329,7 +304,6 @@
 		"stackTarget": [],
 		"effect": [{"Co": 2}, {"Resources": 5}],
 		"cost": [],
-		"effectCond": "and",
 		"cancel": false
 	},
 	{
@@ -341,7 +315,6 @@
 		"stackTarget": [],
 		"effect": [{"Co": 2}, {"Resources": 5}],
 		"cost": [],
-		"effectCond": "and",
 		"cancel": false
 	},
 	{
@@ -353,7 +326,6 @@
 		"stackTarget": [],
 		"effect": [{"Resources": 10}],
 		"cost": [],
-		"effectCond": "",
 		"cancel": false
 	},
 	{
@@ -365,7 +337,6 @@
 		"stackTarget": [],
 		"effect": [{"Resources": 10}],
 		"cost": [],
-		"effectCond": "",
 		"cancel": false
 	},
 	{
@@ -377,7 +348,6 @@
 		"stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 		"effect": [{"HR": 2}, {"Cy": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -389,7 +359,6 @@
 		"stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 		"effect": [{"HR": 2}, {"Cy": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -401,7 +370,6 @@
 		"stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 		"effect": [{"HR": 1}, {"Cy": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -413,7 +381,6 @@
 		"stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 		"effect": [{"HR": 1}, {"Cy": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -425,7 +392,6 @@
 		"stackTarget": [],
 		"effect": [{"MovePpl": 1}, {"HR": 2}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -437,7 +403,6 @@
 		"stackTarget": [],
 		"effect": [{"MovePpl": 1}, {"HR": 2}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -449,7 +414,6 @@
 		"stackTarget": [],
 		"effect": [{"Cy": 2}, {"Token": 3}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -461,7 +425,6 @@
 		"stackTarget": [],
 		"effect": [{"Cy": 2}, {"Token": 3}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -473,7 +436,6 @@
 		"stackTarget": [],
 		"effect": [{"Cy": 2}, {"Token": 3}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -485,7 +447,6 @@
 		"stackTarget": [],
 		"effect": [{"Cy": 2}, {"Token": 3}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -497,7 +458,6 @@
 		"stackTarget": [],
 		"effect": [{"Co": 2}, {"IgnoreCohesionEffect": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -509,7 +469,6 @@
 		"stackTarget": [],
 		"effect": [{"Co": 2}, {"IgnoreCohesionEffect": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -521,7 +480,6 @@
 		"stackTarget": [],
 		"effect": [{"Co": 2}, {"IgnoreCohesionEffect": 1}],
 		"cost": [],
-		"effectCond": "or",
 		"cancel": false
 	},
 	{
@@ -533,7 +491,6 @@
 		"stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 		"effect": [{"TurnDevA": 1}],
 		"cost": [{"HR": -1}, {"Tech": -1}],
-		"effectCond": "and",
 		"cancel": false
 	},
 	{
@@ -545,7 +502,6 @@
 		"stackTarget": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 		"effect": [{"TurnDevA": 1}],
 		"cost": [{"HR": -1}, {"Tech": -1}],
-		"effectCond": "and",
 		"cancel": false
 	},
 	{
@@ -557,7 +513,6 @@
 		"stackTarget": [0],
 		"effect": [{"TurnWild": 1}],
 		"cost": [],
-		"effectCond": "",
 		"optional": { "cost": [{"Env": -1}], "gain": [{"Cy": 1}] },
 		"cancel": false
 	},
@@ -570,7 +525,6 @@
 		"stackTarget": [1, 2, 3, 4, 5, 6],
 		"effect": [{"TurnWild": 1}],
 		"cost": [],
-		"effectCond": "",
 		"optional": { "cost": [{"Env": -1}], "gain": [{"Cy": 1}] },
 		"cancel": false
 	},
@@ -583,7 +537,6 @@
 		"stackTarget": [7, 8, 9, 10],
 		"effect": [{"TurnWild": 1}],
 		"cost": [],
-		"effectCond": "",
 		"optional": { "cost": [{"Env": -1}], "gain": [{"Cy": 1}] },
 		"cancel": false
 	}

@@ -36,19 +36,15 @@ private:
     std::vector<int> stackTargets;
     std::vector<std::pair<DisruptionEffect, int>> effects;   // ordered
     std::vector<std::pair<DisruptionEffect, int>> costs;     // ordered
-    EffectCondition effectCond;
 
     // Optional bonus action
     std::vector<std::pair<DisruptionEffect, int>> optionalCosts;
     std::vector<std::pair<DisruptionEffect, int>> optionalGains;
 
-    VictoryImpact victoryImpact;
     bool cancellable;
 
 public:
     DisruptionCard() : conditionType(ConditionType::NONE),
-                       effectCond(EffectCondition::NONE),
-                       victoryImpact(VictoryImpact::NONE),
                        cancellable(false) {}
     ~DisruptionCard() = default;
 
@@ -59,8 +55,6 @@ public:
 
 
     ConditionType           getConditionType() const { return conditionType; }
-    EffectCondition         getEffectCond()    const { return effectCond; }
-    VictoryImpact           getVictoryImpact() const { return victoryImpact; }
     bool                    isCancellable()    const { return cancellable; }
     bool                    hasOptional()      const { return !optionalCosts.empty(); }
 
@@ -80,8 +74,6 @@ public:
 
 
     void setConditionType(ConditionType ct)          { conditionType = ct; }
-    void setEffectCond(EffectCondition ec)           { effectCond = ec; }
-    void setVictoryImpact(VictoryImpact vi)          { victoryImpact = vi; }
     void setCancellable(bool c)                      { cancellable = c; }
     void setStackTargets(const std::vector<int>& t)  { stackTargets = t; }
 

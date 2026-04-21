@@ -111,21 +111,6 @@ int GameState::findFirstPlayer() const
     return 0;
 }
 
-TokenEffect GameState::mapStackTypeToFeedbackToken(StackType type) const{
-    switch(type){
-        case StackType::WILD:
-            return TokenEffect::TURN_WILD;
-        case StackType::WASTE:
-            return TokenEffect::LOSE_COHESION;
-        case StackType::DEV_A: // Works
-            return TokenEffect::TURN_WASTE;
-        case StackType::DEV_B: // Agora
-            return TokenEffect::SOLVE_DISRUPTION;
-        default:
-            return TokenEffect::UNKNOWN;
-    }
-}
-
 void GameState::rebuildTokenBag() {
     tokenBag.clear();
     // Rebuild bag from current board state by drawing matching tokens from reserve.
