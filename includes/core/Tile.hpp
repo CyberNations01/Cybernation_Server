@@ -18,7 +18,6 @@ class Tile {
         // The neighbor Tile from each side
         // { Tile , side }
         std::vector<std::pair<int,int>> neighbours;
-
     
     public:
         static constexpr int TILE_SIDES = 6;
@@ -46,10 +45,11 @@ class Tile {
         void    setBase(const Stack& base) {this->base = base;};
         void    setOverlay(const Stack& s) {overlay = s;};
         void    setPosition(int pos) {position = pos;};
-
         
         bool    hasOverlay() const {return overlay.has_value();}
         std::optional<Stack> removeOverlay();
+
+        // ! TODO
         void    flip();
 };
 

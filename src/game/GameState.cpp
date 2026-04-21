@@ -4,25 +4,13 @@
 #include <map>
 
 namespace {
-bool compareWithOp(int lhs, comparator op, int rhs) {
-    switch (op) {
-        case comparator::GT: return lhs > rhs;
-        case comparator::GE: return lhs >= rhs;
-        case comparator::EQ: return lhs == rhs;
-        case comparator::LE: return lhs <= rhs;
-        case comparator::LT: return lhs < rhs;
-        case comparator::NE: return lhs != rhs;
-        default: return false;
+    bool isPosMatch(int tilePos, const std::optional<std::string>& pos) {
+        if (!pos.has_value() || pos->empty()) return true;
+        if (*pos == "inner") return tilePos == 0;
+        if (*pos == "middle") return tilePos >= 1 && tilePos <= 6;
+        if (*pos == "outer") return tilePos >= 7 && tilePos <= 10;
+        return false;
     }
-}
-
-bool isPosMatch(int tilePos, const std::optional<std::string>& pos) {
-    if (!pos.has_value() || pos->empty()) return true;
-    if (*pos == "inner") return tilePos == 0;
-    if (*pos == "middle") return tilePos >= 1 && tilePos <= 6;
-    if (*pos == "outer") return tilePos >= 7 && tilePos <= 10;
-    return false;
-}
 }
 
 GameState::GameState() {

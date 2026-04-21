@@ -73,6 +73,10 @@ enum class ActionStatus {
     UNKNOWN_ERROR
 };
 
+enum class comparator {
+    GT, GE, EQ, LE, LT, NE
+};
+
 inline bool parseCyberParameter(const std::string& raw, CyberParameter& out) {
     if (raw == "Co" || raw == "CO" || raw == "COHESION") {
         out = CyberParameter::COHESION; return true;
@@ -103,7 +107,7 @@ inline std::string cyberParameterToLabel(const CyberParameter p) {
     }
 }
 
-inline StackType strtoStackType(const std::string& str)
+inline StackType strToStackType(const std::string& str)
 {
     if (str == "Wild")
         return StackType::WILD;
@@ -125,8 +129,6 @@ inline std::string stackTypeToStr(const StackType &t) {
         default:                 return "Unknown";
     }
 }
-
-
 
 inline std::string tokenEffectToStr(const TokenEffect effect) {
     switch (effect) {
@@ -151,8 +153,6 @@ inline TokenEffect strToTokenEffect(const std::string& str) {
     return TokenEffect::UNKNOWN;
 }
 
-
-
 inline std::string gamePhaseToStr(const GamePhase phase) {
     switch (phase) {
         case GamePhase::ENVISION: return "ENVISION";
@@ -169,11 +169,7 @@ inline GamePhase strToGamePhase(const std::string& str) {
     return GamePhase::ENVISION;
 }
 
-
-
-
-
-inline DisruptionEffect strtoDisruptionEffect(const std::string &str)
+inline DisruptionEffect strToDisruptionEffect(const std::string &str)
 {
     if (str == "TurnWaste")  return DisruptionEffect::TURN_WASTE;
     if (str == "TurnWild")   return DisruptionEffect::TURN_WILD;
@@ -213,12 +209,6 @@ inline CyberParameter disruptionEffectToCyberParameter(const DisruptionEffect& e
     }
 }
 
-
-
-enum class comparator {
-    GT, GE, EQ, LE, LT, NE
-};
-
 inline comparator strToComparator(const std::string& str)
 {
     if (str == "GT") return comparator::GT;
@@ -243,7 +233,6 @@ inline std::string comparatorToStr(const comparator& op)
     }
 }
 
-
 inline TokenEffect mapStackTypeToFeedbackToken(StackType type) {
     switch(type){
         case StackType::WILD:
@@ -259,5 +248,16 @@ inline TokenEffect mapStackTypeToFeedbackToken(StackType type) {
     }
 }
 
+inline bool compareWithOp(int lhs, comparator op, int rhs) {
+    switch (op) {
+        case comparator::GT: return lhs > rhs;
+        case comparator::GE: return lhs >= rhs;
+        case comparator::EQ: return lhs == rhs;
+        case comparator::LE: return lhs <= rhs;
+        case comparator::LT: return lhs < rhs;
+        case comparator::NE: return lhs != rhs;
+        default: return false;
+    }
+}
 
 #endif

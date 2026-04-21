@@ -20,7 +20,7 @@ Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
                 std::vector<int> tiles;
                 for (const auto& t: start_effect[e])
                     tiles.push_back(t.get<int>());
-                effect[strtoStackType(e)] = tiles;
+                effect[strToStackType(e)] = tiles;
             }
         }
 
@@ -125,7 +125,7 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
         std::vector<std::pair<DisruptionEffect, int>> result;
         for (const auto& obj : arr) {
             for (const auto& [key, val] : obj.items()) {
-                result.emplace_back(strtoDisruptionEffect(key), val.get<int>());
+                result.emplace_back(strToDisruptionEffect(key), val.get<int>());
             }
         }
         return result;
@@ -160,7 +160,7 @@ Stack DataLoader::parseJson<Stack>(const nlohmann::json &data)
 {
     Stack stack;
     stack.setId(data.value("id", 0));
-    stack.setType(strtoStackType(data.value("type", "")));
+    stack.setType(strToStackType(data.value("type", "")));
     
     std::vector<std::vector<std::string>> sides;
     if (data.contains("sides") && data["sides"].is_array()) {

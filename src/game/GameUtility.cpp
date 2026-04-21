@@ -101,24 +101,9 @@ ActionResult GameUtility::drawDisruption(GameState& state)
 
 bool GameUtility::checkResourceCondition(GameState& state, ResourceCondition cond)
 {
-    int LHS = state.params.getParamAmount(cond.lhs);
-    int RHS = state.params.getParamAmount(cond.rhs);
-
-    switch (cond.compare) {
-        case comparator::EQ:
-            return LHS == RHS;
-        case comparator::GE:
-            return LHS >= RHS;
-        case comparator::GT:
-            return LHS > RHS;
-        case comparator::LE:
-            return LHS <= RHS;
-        case comparator::LT:
-            return LHS < RHS;
-        case comparator::NE:
-            return LHS != RHS;
-    }
-    return false;
+    int lhs = state.params.getParamAmount(cond.lhs);
+    int rhs = state.params.getParamAmount(cond.rhs);
+    return compareWithOp(lhs, cond.compare, rhs);
 }
 
 bool GameUtility::isStackEffect(const DisruptionEffect &e) 
