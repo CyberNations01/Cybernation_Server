@@ -4,89 +4,76 @@
 #include <map>
 
 namespace {
-bool compareWithOp(int lhs, comparator op, int rhs) {
-    switch (op) {
-        case comparator::GT: return lhs > rhs;
-        case comparator::GE: return lhs >= rhs;
-        case comparator::EQ: return lhs == rhs;
-        case comparator::LE: return lhs <= rhs;
-        case comparator::LT: return lhs < rhs;
-        case comparator::NE: return lhs != rhs;
-        default: return false;
+    bool isPosMatch(int tilePos, const std::optional<std::string>& pos)
+    {
+        if (!pos.has_value() || pos->empty()) return true;
+        if (*pos == "inner") return tilePos == 0;
+        if (*pos == "middle") return tilePos >= 1 && tilePos <= 6;
+        if (*pos == "outer") return tilePos >= 7 && tilePos <= 10;
+        return false;
     }
 }
 
-bool isPosMatch(int tilePos, const std::optional<std::string>& pos) {
-    if (!pos.has_value() || pos->empty()) return true;
-    if (*pos == "inner") return tilePos == 0;
-    if (*pos == "middle") return tilePos >= 1 && tilePos <= 6;
-    if (*pos == "outer") return tilePos >= 7 && tilePos <= 10;
-    return false;
-}
+void GameState::randomizeBoard()
+{
+    std::vector<CardManager<Stack>*> managers = {
+        &wildStackManager, &wasteStackManager, 
+        &devAStackManager, &devBStackManager
+    };
+
+    for (auto* m : managers)
+        m->shuffle();
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dist(0, 3);
+
+    for (int i = 0; i < NUM_TILE; ++i) {
+        int type = dist(gen);
+        board[i].setBase(managers[type]->draw());
+    }
 }
 
 GameState::GameState() {
-    for (int i = 0; i < NUM_PLAYERS; ++i) {
+    for (int i = 0; i < NUM_PLAYERS; ++i)
         players[i] = Player(i);
-    }
     players[0].setFirstPlayer(true);
 
     DataLoader loader;
     disruptionManager = CardManager<DisruptionCard>(loader.loadDisrupt("./data/disruption.json"));
     board = loader.loadTile("./data/layout.json");
-    tileManager = CardManager<Tile>(board);
     goalManager = loader.loadDeck<Goal>("./data/goal.json");
-    if (!goalManager.isDeckEmpty()) {
+    if (!goalManager.isDeckEmpty())
         currentGoal = goalManager.draw();
-    }
 
     CardManager<Stack> allStackManager = loader.loadDeck<Stack>("./data/stack.json");
-    std::vector<std::vector<Stack>> stackVector(4, std::vector<Stack>());
-    std::map<int, Stack> stackById;
-    for (const auto& s : allStackManager.getDeck()) {
-        stackById[s.getId()] = s;
-        switch (s.getType()) {
-            case StackType::WILD: stackVector[0].push_back(s); break;
-            case StackType::WASTE: stackVector[1].push_back(s); break;
-            case StackType::DEV_A: stackVector[2].push_back(s); break;
-            case StackType::DEV_B: stackVector[3].push_back(s); break;
-            default: break;
-        }
-    }
-    wildStackManager = CardManager<Stack>(stackVector[0]);
-    wasteStackManager = CardManager<Stack>(stackVector[1]);
-    devAStackManager = CardManager<Stack>(stackVector[2]);
-    devBStackManager = CardManager<Stack>(stackVector[3]);
+    std::map<StackType, std::vector<Stack>> stacksByType;
+    for (const auto& s : allStackManager.getDeck())
+        stacksByType[s.getType()].push_back(s);
+
+    wildStackManager  = CardManager<Stack>(stacksByType[StackType::WILD]);
+    wasteStackManager = CardManager<Stack>(stacksByType[StackType::WASTE]);
+    devAStackManager  = CardManager<Stack>(stacksByType[StackType::DEV_A]);
+    devBStackManager  = CardManager<Stack>(stacksByType[StackType::DEV_B]);
 
     disruptionManager.shuffle();
 
-    int baseId[]    = {2, 9, 11, 1, 3, 4, 17, 12, 16, 22, 14};
-    int overlayId[] = {26, -1, 42, -1, -1, -1, -1, -1, 35, -1, 41};
     peopleToken = {4, 4};
-
-    for (int i = 0; i < NUM_TILE; ++i) {
-        auto baseIt = stackById.find(baseId[i]);
-        if (baseIt != stackById.end()) board[i].setBase(baseIt->second);
-        if (overlayId[i] >= 0) {
-            auto overlayIt = stackById.find(overlayId[i]);
-            if (overlayIt != stackById.end()) board[i].setOverlay(overlayIt->second);
-        }
-    }
-
+    randomizeBoard();
     rebuildTokenBag();
-    fillFeedbackTrackFromBag();
     adaptTrack.clear();
     adaptCursor = 0;
 }
 
-Tile* GameState::getTile(int position) {
-    for (auto& t : board) {
-        if (t.getPosition() == position) return &t;
-    }
-    return nullptr;
+Tile* GameState::getTile(int position)
+{
+    if (position < 0 || position >= NUM_TILE)
+        return nullptr;
+    return &board[position];
 }
 
-Player* GameState::getPlayer(int id) {
+Player* GameState::getPlayer(int id)
+{
     if (id < 0 || id >= NUM_PLAYERS) return nullptr;
     return &players[id];
 }
@@ -103,6 +90,7 @@ void GameState::setPeopleToken(const std::pair<int, int>& pos)
         peopleToken = pos;
     }
 }
+
 int GameState::findFirstPlayer() const
 {
     for (int i = 0; i < NUM_PLAYERS; ++i) {
@@ -111,22 +99,8 @@ int GameState::findFirstPlayer() const
     return 0;
 }
 
-TokenEffect GameState::mapStackTypeToFeedbackToken(StackType type) const{
-    switch(type){
-        case StackType::WILD:
-            return TokenEffect::TURN_WILD;
-        case StackType::WASTE:
-            return TokenEffect::LOSE_COHESION;
-        case StackType::DEV_A: // Works
-            return TokenEffect::TURN_WASTE;
-        case StackType::DEV_B: // Agora
-            return TokenEffect::SOLVE_DISRUPTION;
-        default:
-            return TokenEffect::UNKNOWN;
-    }
-}
-
-void GameState::rebuildTokenBag() {
+void GameState::rebuildTokenBag()
+{
     tokenBag.clear();
     // Rebuild bag from current board state by drawing matching tokens from reserve.
     for (const auto& tile : board) {
@@ -147,22 +121,13 @@ void GameState::rebuildTokenBag() {
     std::shuffle(tokenBag.begin(), tokenBag.end(), gen);
 }
 
-void GameState::fillFeedbackTrackFromBag(){
-    for(int i = 0; i < FEEDBACK_TRACK_SIZE; ++i){
-        if (!tokenBag.empty()){
-            feedbackTrack[i] = tokenBag.back();
-            tokenBag.pop_back();
-        }else{
-            feedbackTrack[i] = TokenEffect::UNKNOWN;
-        }
-    }
-}
-
-void GameState::syncTokenBagFromManager() {
+void GameState::syncTokenBagFromManager()
+{
     tokenBag = tokenManager.getBag();
 }
 
-void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag) {
+void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag)
+{
     tokenManager.setBag(nextBag);
     syncTokenBagFromManager();
 }
@@ -224,14 +189,7 @@ nlohmann::json GameState::toJson() const {
     nlohmann::json j;
 
     // Game progress
-    j["round"] = {
-        {"current", currentRound},
-        {"max", maxRounds}
-    };
-    j["phase"]           = static_cast<int>(currentPhase);
-    j["currentPlayerId"] = currentPlayerId;
-    j["firstPlayerId"]   = firstPlayerId;
-    j["gameOver"]        = gameOver;
+    j["ignoreCohesionLossThisRound"] = ignoreCohesionLossThisRound;
     j["activeGoal"] = {
         {"id", currentGoal.getId()},
         {"name", currentGoal.getName()},
@@ -252,7 +210,7 @@ nlohmann::json GameState::toJson() const {
     for (const auto& t : board) {
         j["board"].push_back({
             {"position", t.getPosition()},
-            {"type",     t.getEffectiveType()}
+            {"type",     stackTypeToStr(t.getEffectiveType())}
         });
     }
 
@@ -281,6 +239,16 @@ nlohmann::json GameState::toJson() const {
             {"isFirstPlayer", players[i].isFirstPlayer()},
             {"handSize",     static_cast<int>(players[i].getHand().size())}
         });
+    }
+
+    if (activeDisruption.has_value()) {
+        j["activeDisruption"] = {
+            {"name",        activeDisruption->getName()},
+            {"category",    activeDisruption->getCategory()},
+            {"cancellable", activeDisruption->isCancellable()}
+        };
+    } else {
+        j["activeDisruption"] = nullptr;
     }
 
     return j;

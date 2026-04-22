@@ -1,5 +1,5 @@
-#ifndef DISRUPTION_RESOLVER_HPP
-#define DISRUPTION_RESOLVER_HPP
+#ifndef GAME_UTILITY_HPP
+#define GAME_UTILITY_HPP
 #include "core/Types.hpp"
 #include "core/ActionResult.hpp"
 #include "core/Action.hpp"
@@ -9,11 +9,8 @@
 class GameUtility {
     public:
         static ActionResult walkPath(GameState& state);    
-
         static ActionResult drawDisruption(GameState& state);
-
         static ActionResult applyDisruptionEffect(GameState& state, const Action& action);
-        static ActionResult cancelDisruptionEffect(GameState& state);
         static ActionResult tradeForDisruption(GameState& state, const Action& action);
         static void changeTileStack(GameState& state, int tilePos, StackType targetType);
 
@@ -26,11 +23,15 @@ class GameUtility {
 
         // ! Disruption Card Internal
         static bool checkResourceCondition(GameState& state, ResourceCondition cond);
-        static bool isStackEffect(const DisruptionEffect& e);
         static void resolveParamEffect(GameState & state, const std::pair<DisruptionEffect, int>& effect);
-        static bool resolveResourceEffect(GameState& state, 
-                                          const std::vector<std::pair<DisruptionEffect, int>>& effect,
-                                          int limit);
+        static std::optional<ActionResult> cancelCard(GameState &state, const Action & action, const DisruptionCard &card);
+        static std::vector<int> filterTilesByStackCondition(GameState &state,
+                                                            const std::vector<int>& tiles,
+                                                            const DisruptionCard& card);
+        static std::optional<ActionResult> cancelOnTiles(GameState & state,
+                                                         const DisruptionCard& card,
+                                                         const Action &action,
+                                                         std::vector<int>& effectiveStackTarget);
 };
 
 #endif

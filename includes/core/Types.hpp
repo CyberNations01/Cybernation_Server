@@ -18,20 +18,64 @@ enum class CyberParameter {
     TECHNOLOGY
 };
 
-inline CyberParameter strToCyberParameter(const std::string& str)
-{
-    if (str == "Co")
-        return CyberParameter::COHESION;
-    if (str == "Cy")
-        return CyberParameter::CYBERNATION_LEVEL;
-    if (str == "HR")
-        return CyberParameter::HUMAN_RELATION;
-    if (str == "Env")
-        return CyberParameter::ENVIRONMENT;
-    if (str == "Tech")
-        return CyberParameter::TECHNOLOGY;
-    return CyberParameter::COHESION;
-}
+enum class TokenEffect {
+    TURN_WILD,
+    LOSE_COHESION,
+    TURN_WASTE,
+    SOLVE_DISRUPTION,
+    DEVELOP_STACK,
+    TRANSFORM_STACK,
+    UNKNOWN
+};
+
+enum class GamePhase {
+    ENVISION,
+    TRAVERSE,
+    ADOPT,
+};
+
+enum class DisruptionEffect {
+    // Stack changes
+    TURN_WASTE,
+    TURN_WILD,
+    TURN_DEV_A,
+    TURN_DEV_B,
+
+    // Resource changes
+    COHESION,
+    HUMAN_RELATION,
+    CYBERNATION,
+    TECHNOLOGY,
+    ENVIRONMENT,
+    
+    RESOURCES,
+    TOKEN,
+    TRADE,
+
+    // Rule modifiers
+    CAP_ENV,
+    IGNORE_COHESION_EFFECT,
+
+    // Meta
+    SWAP_GOAL,
+    DRAW_GOAL,
+    MOVE_PEOPLE
+};
+
+enum class ActionStatus {
+    SUCCESS,            // Action executed successfully
+    INVALID_ACTION,     // Action not allowed in this phase
+    INVALID_TARGET,     // Target (stack, player, etc.) is invalid
+    INSUFFICIENT_RESOURCE, // Not enough resources to perform action
+    NOT_YOUR_TURN,      // Silently ignored by Round Controller
+    PLAYER_ALREADY_PASSED, // Player has already passed this phase
+    GAME_OVER,          // Game has ended
+    UNKNOWN_ERROR
+};
+
+enum class comparator {
+    GT, GE, EQ, LE, LT, NE
+};
 
 inline bool parseCyberParameter(const std::string& raw, CyberParameter& out) {
     if (raw == "Co" || raw == "CO" || raw == "COHESION") {
@@ -63,7 +107,7 @@ inline std::string cyberParameterToLabel(const CyberParameter p) {
     }
 }
 
-inline StackType strtoStackType(const std::string& str)
+inline StackType strToStackType(const std::string& str)
 {
     if (str == "Wild")
         return StackType::WILD;
@@ -85,16 +129,6 @@ inline std::string stackTypeToStr(const StackType &t) {
         default:                 return "Unknown";
     }
 }
-
-enum class TokenEffect {
-    TURN_WILD,
-    LOSE_COHESION,
-    TURN_WASTE,
-    SOLVE_DISRUPTION,
-    DEVELOP_STACK,
-    TRANSFORM_STACK,
-    UNKNOWN
-};
 
 inline std::string tokenEffectToStr(const TokenEffect effect) {
     switch (effect) {
@@ -119,12 +153,6 @@ inline TokenEffect strToTokenEffect(const std::string& str) {
     return TokenEffect::UNKNOWN;
 }
 
-enum class GamePhase {
-    ENVISION,
-    TRAVERSE,
-    ADOPT,
-};
-
 inline std::string gamePhaseToStr(const GamePhase phase) {
     switch (phase) {
         case GamePhase::ENVISION: return "ENVISION";
@@ -141,53 +169,7 @@ inline GamePhase strToGamePhase(const std::string& str) {
     return GamePhase::ENVISION;
 }
 
-enum class DisruptionType {
-    DISRUPT,
-    BOOST,
-    STACK,
-    RESOURCE
-};
-
-
-inline DisruptionType strtoDisruptionType(std::string &str)
-{
-    if (str == "disrupt")
-        return DisruptionType::DISRUPT;
-    return DisruptionType::BOOST;
-}
-
-enum class EffectCondition { NONE, AND, OR };
-enum class VictoryImpact { NONE, REGULATION, AMPLIFICATION };
-
-enum class DisruptionEffect {
-    // Stack changes
-    TURN_WASTE,
-    TURN_WILD,
-    TURN_DEV_A,
-    TURN_DEV_B,
-
-    // Resource changes
-    COHESION,
-    HUMAN_RELATION,
-    CYBERNATION,
-    TECHNOLOGY,
-    ENVIRONMENT,
-    
-    RESOURCES,
-    TOKEN,
-    TRADE,
-
-    // Rule modifiers
-    CAP_ENV,
-    IGNORE_COHESION_EFFECT,
-
-    // Meta
-    SWAP_GOAL,
-    DRAW_GOAL,
-    MOVE_PEOPLE
-};
-
-inline DisruptionEffect strtoDisruptionEffect(const std::string &str)
+inline DisruptionEffect strToDisruptionEffect(const std::string &str)
 {
     if (str == "TurnWaste")  return DisruptionEffect::TURN_WASTE;
     if (str == "TurnWild")   return DisruptionEffect::TURN_WILD;
@@ -209,21 +191,23 @@ inline DisruptionEffect strtoDisruptionEffect(const std::string &str)
     return DisruptionEffect::COHESION; // fallback
 }
 
-
-enum class ActionStatus {
-    SUCCESS,            // Action executed successfully
-    INVALID_ACTION,     // Action not allowed in this phase
-    INVALID_TARGET,     // Target (stack, player, etc.) is invalid
-    INSUFFICIENT_RESOURCE, // Not enough resources to perform action
-    NOT_YOUR_TURN,      // Silently ignored by Round Controller
-    PLAYER_ALREADY_PASSED, // Player has already passed this phase
-    GAME_OVER,          // Game has ended
-    UNKNOWN_ERROR
-};
-
-enum class comparator {
-    GT, GE, EQ, LE, LT, NE
-};
+inline CyberParameter disruptionEffectToCyberParameter(const DisruptionEffect& eff)
+{
+    switch (eff) {
+        case DisruptionEffect::CYBERNATION:    
+            return CyberParameter::CYBERNATION_LEVEL; 
+        case DisruptionEffect::COHESION:
+            return CyberParameter::COHESION;
+        case DisruptionEffect::HUMAN_RELATION:
+            return CyberParameter::HUMAN_RELATION;
+        case DisruptionEffect::TECHNOLOGY:
+            return CyberParameter::TECHNOLOGY;
+        case DisruptionEffect::ENVIRONMENT:
+            return CyberParameter::ENVIRONMENT;
+        default:
+            return CyberParameter::CYBERNATION_LEVEL;
+    }
+}
 
 inline comparator strToComparator(const std::string& str)
 {
@@ -246,6 +230,33 @@ inline std::string comparatorToStr(const comparator& op)
         case comparator::LT: return "LT";
         case comparator::NE: return "NE";
         default:             return "EQ";
+    }
+}
+
+inline TokenEffect mapStackTypeToFeedbackToken(StackType type) {
+    switch(type){
+        case StackType::WILD:
+            return TokenEffect::TURN_WILD;
+        case StackType::WASTE:
+            return TokenEffect::LOSE_COHESION;
+        case StackType::DEV_A: // Works
+            return TokenEffect::TURN_WASTE;
+        case StackType::DEV_B: // Agora
+            return TokenEffect::SOLVE_DISRUPTION;
+        default:
+            return TokenEffect::UNKNOWN;
+    }
+}
+
+inline bool compareWithOp(int lhs, comparator op, int rhs) {
+    switch (op) {
+        case comparator::GT: return lhs > rhs;
+        case comparator::GE: return lhs >= rhs;
+        case comparator::EQ: return lhs == rhs;
+        case comparator::LE: return lhs <= rhs;
+        case comparator::LT: return lhs < rhs;
+        case comparator::NE: return lhs != rhs;
+        default: return false;
     }
 }
 

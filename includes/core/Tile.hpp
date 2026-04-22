@@ -18,7 +18,6 @@ class Tile {
         // The neighbor Tile from each side
         // { Tile , side }
         std::vector<std::pair<int,int>> neighbours;
-
     
     public:
         static constexpr int TILE_SIDES = 6;
@@ -38,7 +37,7 @@ class Tile {
         const int&                                     getNeighbourTile(const int& side) const;
         const int&                                     getNeighbourSide(int side) const;
         const std::vector<std::pair<int,int>>&         getNeighbours() const { return neighbours; }
-        const std::vector<std::string>&                getSideResources(int side)  const;
+        const std::vector<std::string>                 getSideResources(int side)  const;
 
         void    setNeighbour(const std::vector<std::pair<int,int>>& nTile) {neighbours = nTile;};
         void    setToken(const TokenEffect &token) {this->token = token;};
@@ -46,10 +45,11 @@ class Tile {
         void    setBase(const Stack& base) {this->base = base;};
         void    setOverlay(const Stack& s) {overlay = s;};
         void    setPosition(int pos) {position = pos;};
-
         
         bool    hasOverlay() const {return overlay.has_value();}
         std::optional<Stack> removeOverlay();
+
+        // ! TODO
         void    flip();
 };
 

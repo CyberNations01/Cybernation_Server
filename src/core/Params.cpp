@@ -25,12 +25,12 @@ void Params::setHumanRelation(const int& val) {
 }
 
 void Params::setEnvironment(const int& val) {
-    if (val < 0 || val > 20 || val > cohesion) return;
+    if (val < 0) return;
     environment = std::min(std::min(val, MAX_PARAMS_LEVEL), cohesion);;
 }
 
 void Params::setTechnology(const int& val) {
-    if (val < 0 || val > 20 || val > cohesion) return;
+    if (val < 0) return;
     technology = std::min(std::min(val, MAX_PARAMS_LEVEL), cohesion);;
 }
 

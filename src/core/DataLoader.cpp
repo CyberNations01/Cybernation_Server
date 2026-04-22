@@ -20,7 +20,7 @@ Goal DataLoader::parseJson<Goal>(const nlohmann::json& data)
                 std::vector<int> tiles;
                 for (const auto& t: start_effect[e])
                     tiles.push_back(t.get<int>());
-                effect[strtoStackType(e)] = tiles;
+                effect[strToStackType(e)] = tiles;
             }
         }
 
@@ -79,10 +79,7 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
 
     card.setName(data.at("name").get<std::string>());
     card.setDescription(data.at("description").get<std::string>());
-
-    // Type: "disrupt" or "boost"
-    std::string typeStr = data.at("type").get<std::string>();
-    card.setType(typeStr == "boost" ? DisruptionType::BOOST : DisruptionType::DISRUPT);
+    card.setCategory(data.at("category").get<std::string>());
 
     // ConditionType + condition parsing
     std::string condTypeStr = data.at("conditionType").get<std::string>();
@@ -100,8 +97,10 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     } else if (condTypeStr == "resource") {
         card.setConditionType(ConditionType::RESOURCE);
         ResourceCondition rc;
-        rc.lhs     = strToCyberParameter(data.at("condition").at("lhs").get<std::string>());
-        rc.rhs     = strToCyberParameter(data.at("condition").at("rhs").get<std::string>());
+        if (!parseCyberParameter(data.at("condition").at("lhs").get<std::string>(), rc.lhs) ||
+            !parseCyberParameter(data.at("condition").at("rhs").get<std::string>(), rc.rhs)) {
+                std::cerr << " Cannot parse string to CyberParameter" << std::endl;
+        }
         std::string cmp = data.at("condition").at("compare").get<std::string>();
         if      (cmp == "GT") rc.compare = comparator::GT;
         else if (cmp == "GE") rc.compare = comparator::GE;
@@ -126,7 +125,7 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
         std::vector<std::pair<DisruptionEffect, int>> result;
         for (const auto& obj : arr) {
             for (const auto& [key, val] : obj.items()) {
-                result.emplace_back(strtoDisruptionEffect(key), val.get<int>());
+                result.emplace_back(strToDisruptionEffect(key), val.get<int>());
             }
         }
         return result;
@@ -138,24 +137,17 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     // Costs
     card.setCosts(parseEffectArray(data.at("cost")));
 
-    // Effect condition
-    std::string ecStr = data.at("effectCond").get<std::string>();
-    if      (ecStr == "and") card.setEffectCond(EffectCondition::AND);
-    else if (ecStr == "or")  card.setEffectCond(EffectCondition::OR);
-    else                     card.setEffectCond(EffectCondition::NONE);
-
     // Optional
-    const auto& opt = data.at("optional");
-    if (opt.is_object() && opt.contains("cost")) {
-        card.setOptionalCosts(parseEffectArray(opt.at("cost")));
-        card.setOptionalGains(parseEffectArray(opt.at("gain")));
+    if (data.contains("optional")) {
+
+        const auto& opt = data.at("optional");
+        if (opt.is_object() && opt.contains("cost")) {
+            card.setOptionalCosts(parseEffectArray(opt.at("cost")));
+            card.setOptionalGains(parseEffectArray(opt.at("gain")));
+        }
     }
 
     // Victory impact
-    std::string viStr = data.at("victoryImpact").get<std::string>();
-    if      (viStr == "Regulation")    card.setVictoryImpact(VictoryImpact::REGULATION);
-    else if (viStr == "Amplification") card.setVictoryImpact(VictoryImpact::AMPLIFICATION);
-    else                               card.setVictoryImpact(VictoryImpact::NONE);
 
     // Cancellable
     card.setCancellable(data.at("cancel").get<bool>());
@@ -168,7 +160,7 @@ Stack DataLoader::parseJson<Stack>(const nlohmann::json &data)
 {
     Stack stack;
     stack.setId(data.value("id", 0));
-    stack.setType(strtoStackType(data.value("type", "")));
+    stack.setType(strToStackType(data.value("type", "")));
     
     std::vector<std::vector<std::string>> sides;
     if (data.contains("sides") && data["sides"].is_array()) {

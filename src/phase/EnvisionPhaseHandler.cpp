@@ -78,8 +78,8 @@ ActionResult EnvisionPhaseHandler::handleShiftPower(const Action& action, GameSt
     }
 
     // Give token to the target player.
-    target->setFirstPlayer(true);
-    state.firstPlayerId = targetPlayerId;
+    // target->setFirstPlayer(true);
+    // state.firstPlayerId = targetPlayerId;
 
     return  ActionResult::success({"info","First-player token shifted to player" + std::to_string(targetPlayerId)});
 }

@@ -2,8 +2,10 @@ CXX      = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -I./includes
 SRCDIR   = src
 OBJDIR   = obj
-TARGET   = out/testLoadJson
-ADAPT_TARGET = out/testAdaptSimulation
+LOAD_TARGET      = out/testLoadJson
+ADAPT_TARGET     = out/testAdaptSimulation
+CATEGORY_TARGET  = out/testDisruptionCategories
+TRAVERSE_TARGET  = out/testTraverseDisruption
  
 SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/core/FeedbackPool.cpp \
@@ -20,19 +22,30 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/EnvisionPhaseHandler.cpp \
           $(SRCDIR)/phase/TraversePhaseHandler.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
-          $(SRCDIR)/game/GameUtility.cpp \
-          $(SRCDIR)/test/testLoadJson.cpp
+          $(SRCDIR)/game/GameUtility.cpp
 
- 
-OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
- 
-all: $(TARGET)
 
-COMMON_SOURCES = $(filter-out $(SRCDIR)/test/testLoadJson.cpp,$(SOURCES))
-ADAPT_SOURCES = $(COMMON_SOURCES) $(SRCDIR)/test/testAdaptSimulation.cpp
-ADAPT_OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(ADAPT_SOURCES))
+COMMON_OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
+LOAD_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testLoadJson.o
+ADAPT_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testAdaptSimulation.o
+CATEGORY_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testDisruptionCategories.o
+TRAVERSE_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testTraverseDisruption.o
  
-$(TARGET): $(OBJECTS)
+all: $(LOAD_TARGET)
+
+$(LOAD_TARGET): $(LOAD_OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+$(ADAPT_TARGET): $(ADAPT_OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+$(CATEGORY_TARGET): $(CATEGORY_OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+$(TRAVERSE_TARGET): $(TRAVERSE_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -o $@ $^
  
@@ -40,13 +53,26 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
  
+
+SERVER_TARGET = out/server
+SERVER_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/net/http-server.o
+
+server: $(SERVER_TARGET)
+
+$(SERVER_TARGET): $(SERVER_OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread
+
 clean:
-	rm -rf $(OBJDIR) $(TARGET) $(ADAPT_TARGET)
+	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET) $(SERVER_TARGET)
 
 adapt-sim: $(ADAPT_TARGET)
+disruption-categories: $(CATEGORY_TARGET)
+traverse-test: $(TRAVERSE_TARGET)
 
-$(ADAPT_TARGET): $(ADAPT_OBJECTS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -o $@ $^
- 
-.PHONY: all clean adapt-sim
+test-all: $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET)
+	./$(CATEGORY_TARGET)
+	./$(TRAVERSE_TARGET)
+	./$(ADAPT_TARGET)
+
+.PHONY: all clean adapt-sim disruption-categories traverse-test test-all server
