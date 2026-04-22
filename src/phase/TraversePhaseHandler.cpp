@@ -8,7 +8,7 @@ ActionResult TraversePhaseHandler::handle(const Action& action, GameState& state
     if (action.type == "resolve_disruption")
         return handleResolveDisruption(action, state);
 
-    if (action.type == "walkPath")
+    if (action.type == "walk_path")
         return handleWalkPath(state);
 
     return {ActionStatus::INVALID_ACTION};

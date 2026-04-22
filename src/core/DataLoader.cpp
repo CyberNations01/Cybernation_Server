@@ -97,8 +97,8 @@ DisruptionCard DataLoader::parseJson<DisruptionCard>(const nlohmann::json &data)
     } else if (condTypeStr == "resource") {
         card.setConditionType(ConditionType::RESOURCE);
         ResourceCondition rc;
-        if (parseCyberParameter(data.at("condition").at("lhs").get<std::string>(), rc.lhs) ||
-            parseCyberParameter(data.at("condition").at("rhs").get<std::string>(), rc.rhs)) {
+        if (!parseCyberParameter(data.at("condition").at("lhs").get<std::string>(), rc.lhs) ||
+            !parseCyberParameter(data.at("condition").at("rhs").get<std::string>(), rc.rhs)) {
                 std::cerr << " Cannot parse string to CyberParameter" << std::endl;
         }
         std::string cmp = data.at("condition").at("compare").get<std::string>();

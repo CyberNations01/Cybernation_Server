@@ -12,11 +12,16 @@ using json = nlohmann::json;
  
 static json actionResultToJson(const ActionResult& result)
 {
+    json payload;
+    payload = json::parse(result.message.payload, nullptr, false);
+    if (payload.is_discarded())
+        payload = result.message.payload;
+
     return {
         {"status",  static_cast<int>(result.status)},
         {"message", {
             {"type",    result.message.type},
-            {"payload", result.message.payload}
+            {"payload", payload}
         }}
     };
 }
