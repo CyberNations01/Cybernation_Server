@@ -19,12 +19,9 @@ public:
     GamePhase    getPhase() const override { return GamePhase::TRAVERSE; }
 
 private:
-
     ActionResult handleWalkPath(GameState &state);
-
     ActionResult handleDrawDisruption(GameState& state);
     ActionResult handleResolveDisruption(const Action& action, GameState& state);
-    ActionResult handleCancelDisruption(GameState& state);
 
 };
 

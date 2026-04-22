@@ -90,9 +90,7 @@ ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
         }
         return res;
     }
-    if (action.type == "cancel_disruption") {
-        return GameUtility::cancelDisruptionEffect(state);
-    }
+    
     if (action.type == "trade") {
         return handleTrade(action, state);
     }

@@ -6,8 +6,6 @@ ActionResult TraversePhaseHandler::handle(const Action& action, GameState& state
         return handleDrawDisruption(state);
     if (action.type == "resolve_disruption")
         return handleResolveDisruption(action, state);
-    if (action.type == "cancel_disruption")
-        return handleCancelDisruption(state);
     if (action.type == "walkPath")
         return handleWalkPath(state);
 
@@ -58,17 +56,3 @@ ActionResult TraversePhaseHandler::handleResolveDisruption(const Action& action,
     return res;
 }
 
-ActionResult TraversePhaseHandler::handleCancelDisruption(GameState &state)
-{
-    if (!state.traverseDisruptionDrawn) {
-        return {ActionStatus::INVALID_ACTION, {"cancel_disruption", "Draw disruption before cancelling"}};
-    }
-    if (state.traverseDisruptionHandled) {
-        return {ActionStatus::INVALID_ACTION, {"cancel_disruption", "Disruption is already handled"}};
-    }
-    ActionResult res = GameUtility::cancelDisruptionEffect(state);
-    if (res.ok()) {
-        state.traverseDisruptionHandled = true;
-    }
-    return res;
-}
