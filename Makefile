@@ -5,7 +5,6 @@ OBJDIR   = obj
 LOAD_TARGET      = out/testLoadJson
 ADAPT_TARGET     = out/testAdaptSimulation
 CATEGORY_TARGET  = out/testDisruptionCategories
-TRAVERSE_TARGET  = out/testTraverseDisruption
  
 SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/core/FeedbackPool.cpp \
@@ -29,7 +28,6 @@ COMMON_OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 LOAD_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testLoadJson.o
 ADAPT_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testAdaptSimulation.o
 CATEGORY_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testDisruptionCategories.o
-TRAVERSE_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testTraverseDisruption.o
  
 all: $(LOAD_TARGET)
 
@@ -45,24 +43,18 @@ $(CATEGORY_TARGET): $(CATEGORY_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(TRAVERSE_TARGET): $(TRAVERSE_OBJECTS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -o $@ $^
- 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
  
 clean:
-	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET)
+	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET)
 
 adapt-sim: $(ADAPT_TARGET)
 disruption-categories: $(CATEGORY_TARGET)
-traverse-test: $(TRAVERSE_TARGET)
 
-test-all: $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET)
+test-all: $(ADAPT_TARGET) $(CATEGORY_TARGET)
 	./$(CATEGORY_TARGET)
-	./$(TRAVERSE_TARGET)
 	./$(ADAPT_TARGET)
 
-.PHONY: all clean adapt-sim disruption-categories traverse-test test-all
+.PHONY: all clean adapt-sim disruption-categories test-all

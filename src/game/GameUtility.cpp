@@ -608,8 +608,13 @@ ActionResult GameUtility::tradeForDisruption(GameState& state, const Action& act
 
     int amount = 1;
     auto amtIt = req.find("amount");
-    if (amtIt != req.end())
-        amount = std::stoi(amtIt->second);
+    if (amtIt != req.end()) {
+        try {
+            amount = std::stoi(amtIt->second);
+        } catch (...) {
+            return ActionResult::invalid("amount must be an integer");
+        }
+    }
 
     if (amount <= 0)
         return ActionResult::invalid("Trade amount must be > 0");
