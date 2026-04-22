@@ -24,7 +24,7 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
           $(SRCDIR)/game/GameUtility.cpp
 
- 
+
 COMMON_OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))
 LOAD_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testLoadJson.o
 ADAPT_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/test/testAdaptSimulation.o
@@ -53,8 +53,18 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
  
+
+SERVER_TARGET = out/server
+SERVER_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/net/http-server.o
+
+server: $(SERVER_TARGET)
+
+$(SERVER_TARGET): $(SERVER_OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread
+
 clean:
-	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET)
+	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET) $(SERVER_TARGET)
 
 adapt-sim: $(ADAPT_TARGET)
 disruption-categories: $(CATEGORY_TARGET)
@@ -65,4 +75,4 @@ test-all: $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET)
 	./$(TRAVERSE_TARGET)
 	./$(ADAPT_TARGET)
 
-.PHONY: all clean adapt-sim disruption-categories traverse-test test-all
+.PHONY: all clean adapt-sim disruption-categories traverse-test test-all server

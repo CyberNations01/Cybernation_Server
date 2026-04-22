@@ -567,8 +567,8 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
     }
 
 
-    /* CatG : Trade Resources */
-    else if (category == "CatG") {
+    /* CatK : Trade Resources */
+    else if (category == "CatK") {
         return tradeForDisruption(state, action);
     }
 

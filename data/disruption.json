@@ -544,7 +544,7 @@
     {
         "name": "NEW_HORIZONS_1",
         "description": "Trade 1 resource for 1 resource",
-        "type": "boost",
+        "category": "CatK",
         "conditionType": "none",
         "condition": {},
         "stackTarget": [],
@@ -556,7 +556,7 @@
     {
         "name": "NEW_HORIZONS_2",
         "description": "Trade 1 resource for 1 resource",
-        "type": "boost",
+        "category": "CatK",
         "conditionType": "none",
         "condition": {},
         "stackTarget": [],
@@ -568,7 +568,7 @@
     {
         "name": "NEW_HORIZONS_3",
         "description": "Trade 1 resource for 1 resource",
-        "type": "boost",
+        "category": "CatK",
         "conditionType": "none",
         "condition": {},
         "stackTarget": [],

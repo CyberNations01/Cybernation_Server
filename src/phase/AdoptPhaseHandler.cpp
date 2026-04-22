@@ -434,9 +434,9 @@ ActionResult AdoptPhaseHandler::handleCommit(const Action& action, GameState& st
     // once Role/Agenda pipeline is implemented.
     const bool goalMet = state.isActiveGoalMet();
     const bool turnLimitReached = false;
-    if (goalMet) {
-        state.gameOver = true;
-    }
+    // if (goalMet) {
+    //     state.gameOver = true;
+    // }
 
     nlohmann::json payload = {
         {"returnedToBag", returnedToBag},
@@ -444,8 +444,8 @@ ActionResult AdoptPhaseHandler::handleCommit(const Action& action, GameState& st
         {"bagSize", static_cast<int>(state.tokenBag.size())},
         {"goalMet", goalMet},
         {"turnLimitReached", turnLimitReached},
-        {"gameOver", state.gameOver},
-        {"nextAction", state.gameOver ? "END_GAME" : "START_NEW_TURN"},
+        // {"gameOver", state.gameOver},
+        // {"nextAction", state.gameOver ? "END_GAME" : "START_NEW_TURN"},
         {"outcomeResolution", "TODO_ROLE_AGENDA_NOT_ENABLED"}
     };
 
