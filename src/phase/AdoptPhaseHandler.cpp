@@ -90,6 +90,15 @@ ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
         }
         return res;
     }
+    if (action.type == "cancel_disruption") {
+        Action routed = action;
+        routed.params["cancel"] = "1";
+        ActionResult res = GameUtility::applyDisruptionEffect(state, routed);
+        if (res.ok()) {
+            state.activeDisruption = std::nullopt;
+        }
+        return res;
+    }
     
     if (action.type == "trade") {
         return handleTrade(action, state);
@@ -266,11 +275,17 @@ ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& actio
     for (int i = 0; i < times; ++i) {
         state.activeDisruption = *card;
 
-        // Reuse the same disruption routes exposed by this phase
-        // to keep behavior aligned with draw/resolve/cancel actions.
         Action routed = action;
-        routed.type = (decision == "cancel") ? "cancel_disruption" : "resolve_disruption";
-        ActionResult utilResult = handle(routed, state);
+        routed.type = "resolve_disruption";
+        if (decision == "cancel") {
+            routed.params["cancel"] = "1";
+        } else {
+            routed.params.erase("cancel");
+        }
+        ActionResult utilResult = GameUtility::applyDisruptionEffect(state, routed);
+        if (utilResult.ok()) {
+            state.activeDisruption = std::nullopt;
+        }
 
         if (!utilResult.ok()) {
             return fail(utilResult.status, utilResult.message.payload);
