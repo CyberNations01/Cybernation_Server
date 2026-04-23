@@ -2,9 +2,20 @@
 #include <string>
 #include <vector>
 #include "nlohmann/json.hpp"
-#include "game/GameRoom.hpp"
+#include "phase/AdoptPhaseHandler.hpp"
+#include "game/GameState.hpp"
 #include "core/Action.hpp"
 #include "core/DisruptionCard.hpp"
+#include "core/Stack.hpp"
+#include "game/GameUtility.hpp"
+
+// Compare Adopt::resolve_disruption with GameUtility::applyDisruptionEffect (same state + action).
+static bool sameResolveOutcome(AdoptPhaseHandler& adopt, GameState& s, const Action& a) {
+    GameState sU = s;
+    ActionResult rU = GameUtility::applyDisruptionEffect(sU, a);
+    ActionResult rA = adopt.handle(a, s);
+    return rU.ok() == rA.ok();
+}
 
 namespace {
 int gFailures = 0;
@@ -14,33 +25,37 @@ void expectTrue(bool cond, const std::string& label) {
     if (!cond) ++gFailures;
 }
 
-int currentActor(const GameRoom& room) {
-    int current = room.getController().getCurrentPlayerId();
-    if (current < 0) return room.getState().firstPlayerId;
-    return current;
-}
-
-Action makeAction(const GameRoom& room, const std::string& type) {
+Action makeAdoptAction(const std::string& type) {
     Action a;
-    a.playerId = currentActor(room);
+    a.playerId = 0;
     a.type = type;
     return a;
 }
 
-ActionResult dispatch(GameRoom& room, Action action, const std::string& label) {
-    ActionResult result = room.receiveAction(action);
-    std::cout << "[ACTION " << label << "] "
-              << (result.ok() ? "OK" : "FAIL")
-              << " status=" << static_cast<int>(result.status)
-              << " type=" << result.message.type
-              << " payload=" << result.message.payload << std::endl;
-    return result;
+ActionResult run(AdoptPhaseHandler& handler, GameState& state, Action action, const std::string& label) {
+    ActionResult r = handler.handle(action, state);
+    std::cout << "[ACTION " << label << "] " << (r.ok() ? "OK" : "FAIL")
+              << " status=" << static_cast<int>(r.status) << " type=" << r.message.type << std::endl;
+    return r;
 }
 
-void forceAdaptState(GameRoom& room, const std::vector<TokenEffect>& track) {
-    auto& state = room.getState();
-    state.currentPhase = GamePhase::ADOPT;
-    state.gameOver = false;
+void prepState(GameState& s) {
+    s.params.setCohesion(15);
+    s.params.setCybernationLevel(5);
+    s.params.setHumanRelation(20);
+    s.params.setTechnology(20);
+    s.params.setEnvironment(20);
+}
+
+void prepRichResources(GameState& s) {
+    s.params.setCohesion(25);
+    s.params.setCybernationLevel(20);
+    s.params.setHumanRelation(20);
+    s.params.setTechnology(20);
+    s.params.setEnvironment(20);
+}
+
+void forceTrack(GameState& state, const std::vector<TokenEffect>& track) {
     state.activeDisruption = std::nullopt;
     state.adaptTrack = track;
     state.adaptCursor = 0;
@@ -48,328 +63,325 @@ void forceAdaptState(GameRoom& room, const std::vector<TokenEffect>& track) {
     state.setTokenBag(track);
 }
 
-DisruptionCard mustFindDisruptionCard(const GameState& state, const std::string& name) {
+DisruptionCard requireCardByName(const GameState& state, const std::string& name) {
     for (const auto& card : state.disruptionManager.getDeck()) {
         if (card.getName() == name) return card;
     }
     for (const auto& card : state.disruptionManager.getDiscard()) {
         if (card.getName() == name) return card;
     }
-    std::cerr << "[FATAL] disruption card not found: " << name << std::endl;
+    std::cerr << "[FATAL] missing card: " << name << std::endl;
     std::exit(2);
 }
-}
+}  // namespace
 
 int main() {
-    GameRoom room;
-    std::cout << "=== Adapt Branch Coverage Simulation ===" << std::endl;
+    std::cout << "=== AdoptPhaseHandler direct tests (no GameRoom) ===" << std::endl;
+    AdoptPhaseHandler adopt;
+    GameState state;
+    prepState(state);
 
-    // Initialize controller + turn order quickly.
-    while (room.getState().currentPhase == GamePhase::ENVISION) {
-        Action pass = makeAction(room, "pass");
-        dispatch(room, pass, "boot_envision_pass");
-    }
-    while (room.getState().currentPhase == GamePhase::TRAVERSE) {
-        Action pass = makeAction(room, "pass");
-        dispatch(room, pass, "boot_traverse_pass");
-    }
-    expectTrue(room.getState().currentPhase == GamePhase::ADOPT, "Entered ADOPT phase");
+    // --- 1) resolve_feedback validation
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    expectTrue(!run(adopt, state, makeAdoptAction("resolve_feedback"), "missing_params").ok(),
+               "resolve_feedback requires target_tile, decision");
 
-    // --- 1) snapshot contract check ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    nlohmann::json snap = nlohmann::json::parse(room.getSnapshot());
-    expectTrue(snap.contains("gameState"), "snapshot includes gameState");
-    expectTrue(snap.contains("controller"), "snapshot includes controller");
-    expectTrue(snap["gameState"]["phase"] == static_cast<int>(GamePhase::ADOPT),
-               "snapshot gameState reports ADOPT");
-
-    // --- 2) resolve_feedback validation branches ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action missingParam = makeAction(room, "resolve_feedback");
-    ActionResult missingParamRes = dispatch(room, missingParam, "resolve_missing_params");
-    expectTrue(!missingParamRes.ok(), "resolve_feedback missing params fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action badTarget = makeAction(room, "resolve_feedback");
-    badTarget.params["decision"] = "allow";
-    badTarget.params["target_tile"] = "abc";
-    ActionResult badTargetRes = dispatch(room, badTarget, "resolve_bad_target_type");
-    expectTrue(!badTargetRes.ok(), "resolve_feedback invalid target type fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action wrongRing = makeAction(room, "resolve_feedback");
-    wrongRing.params["decision"] = "allow";
-    wrongRing.params["target_tile"] = "1";
-    ActionResult wrongRingRes = dispatch(room, wrongRing, "resolve_wrong_ring");
-    expectTrue(!wrongRingRes.ok(), "resolve_feedback wrong ring fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD, TokenEffect::TURN_WILD, TokenEffect::TURN_WILD});
-    Action occupyInner = makeAction(room, "resolve_feedback");
-    occupyInner.params["decision"] = "allow";
-    occupyInner.params["target_tile"] = "0";
-    ActionResult occupyInnerRes = dispatch(room, occupyInner, "resolve_occupied_tile_inner");
-    expectTrue(occupyInnerRes.ok(), "inner resolve succeeds before occupied check");
-    Action occupyMiddleFirst = makeAction(room, "resolve_feedback");
-    occupyMiddleFirst.params["decision"] = "allow";
-    occupyMiddleFirst.params["target_tile"] = "1";
-    ActionResult occupyMiddleFirstRes = dispatch(room, occupyMiddleFirst, "resolve_occupied_tile_middle_first");
-    expectTrue(occupyMiddleFirstRes.ok(), "first middle resolve succeeds");
-    Action occupied = makeAction(room, "resolve_feedback");
-    occupied.params["decision"] = "allow";
-    occupied.params["target_tile"] = "1";
-    ActionResult occupiedRes = dispatch(room, occupied, "resolve_occupied_tile_middle_second");
-    expectTrue(!occupiedRes.ok(), "resolve_feedback occupied tile fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(0);
-    Action cancelNoCy = makeAction(room, "resolve_feedback");
-    cancelNoCy.params["decision"] = "cancel";
-    cancelNoCy.params["target_tile"] = "0";
-    ActionResult cancelNoCyRes = dispatch(room, cancelNoCy, "resolve_cancel_insufficient_cy");
-    expectTrue(!cancelNoCyRes.ok(), "cancel fails when cybernation is 0");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(2);
-    Action cancelOk = makeAction(room, "resolve_feedback");
-    cancelOk.params["decision"] = "cancel";
-    cancelOk.params["target_tile"] = "0";
-    ActionResult cancelOkRes = dispatch(room, cancelOk, "resolve_cancel_ok");
-    expectTrue(cancelOkRes.ok(), "cancel succeeds with enough cybernation");
-    expectTrue(room.getState().params.getCybernationLevel() == 1, "cancel consumes 1 cybernation");
-
-    // --- 3) Effect branches: DEVELOP / TRANSFORM / UNKNOWN ---
-    forceAdaptState(room, {TokenEffect::DEVELOP_STACK});
-    room.getState().getTile(0)->removeOverlay();
-    Action develop = makeAction(room, "resolve_feedback");
-    develop.params["decision"] = "allow";
-    develop.params["target_tile"] = "0";
-    develop.params["develop_to"] = "DEV_B";
-    ActionResult developRes = dispatch(room, develop, "resolve_develop_dev_b");
-    expectTrue(developRes.ok(), "DEVELOP_STACK allow succeeds");
-    expectTrue(room.getState().getTile(0)->hasOverlay(), "DEVELOP_STACK creates overlay");
-    expectTrue(room.getState().getTile(0)->getOverlay().getType() == StackType::DEV_B,
-               "DEVELOP_STACK chooses DEV_B");
-
-    forceAdaptState(room, {TokenEffect::TRANSFORM_STACK});
+    forceTrack(state, {TokenEffect::TURN_WILD});
     {
-        Stack overlay;
-        overlay.setType(StackType::DEV_A);
-        room.getState().getTile(0)->setOverlay(overlay);
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "abc";
+        expectTrue(!run(adopt, state, a, "bad_tile").ok(), "invalid target_tile");
     }
-    Action transform = makeAction(room, "resolve_feedback");
-    transform.params["decision"] = "allow";
-    transform.params["target_tile"] = "0";
-    ActionResult transformRes = dispatch(room, transform, "resolve_transform");
-    expectTrue(transformRes.ok(), "TRANSFORM_STACK allow succeeds");
-    expectTrue(room.getState().getTile(0)->hasOverlay(), "TRANSFORM keeps overlay");
-    expectTrue(room.getState().getTile(0)->getOverlay().getType() == StackType::DEV_B,
-               "TRANSFORM toggles DEV_A -> DEV_B");
 
-    forceAdaptState(room, {TokenEffect::UNKNOWN});
-    Action unknown = makeAction(room, "resolve_feedback");
-    unknown.params["decision"] = "allow";
-    unknown.params["target_tile"] = "0";
-    ActionResult unknownRes = dispatch(room, unknown, "resolve_unknown_effect");
-    expectTrue(unknownRes.ok(), "UNKNOWN effect branch returns success");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "1";
+        expectTrue(!run(adopt, state, a, "wrong_ring").ok(), "slot0 must be inner 0 only");
+    }
 
-    forceAdaptState(room, {TokenEffect::SOLVE_DISRUPTION});
-    room.getState().activeDisruption = std::nullopt;
-    Action solveDisruption = makeAction(room, "resolve_feedback");
-    solveDisruption.params["decision"] = "allow";
-    solveDisruption.params["target_tile"] = "0";
-    ActionResult solveDisruptionRes = dispatch(room, solveDisruption, "resolve_solve_disruption");
-    expectTrue(solveDisruptionRes.ok(), "SOLVE_DISRUPTION draws disruption via GameUtility");
-    expectTrue(room.getState().activeDisruption.has_value(), "SOLVE_DISRUPTION creates active disruption");
+    forceTrack(state, {TokenEffect::TURN_WILD, TokenEffect::TURN_WILD, TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "0";
+        expectTrue(run(adopt, state, a, "inner0").ok(), "inner 0");
+    }
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "1";
+        expectTrue(run(adopt, state, a, "mid1").ok(), "first middle 1");
+    }
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "1";
+        expectTrue(!run(adopt, state, a, "reuse").ok(), "no duplicate stack");
+    }
 
-    // --- 4) cancel_disruption_effect branches ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelMissingName = makeAction(room, "cancel_disruption_effect");
-    ActionResult cancelMissingRes = dispatch(room, cancelMissingName, "cancel_disruption_missing_name");
-    expectTrue(!cancelMissingRes.ok(), "cancel_disruption_effect requires disruption_name");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    state.params.setCybernationLevel(0);
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "cancel";
+        a.params["target_tile"] = "0";
+        expectTrue(!run(adopt, state, a, "cancel_no_cy").ok(), "cancel needs Cy>=1");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelUnknown = makeAction(room, "cancel_disruption_effect");
-    cancelUnknown.params["disruption_name"] = "NO_SUCH_CARD";
-    ActionResult cancelUnknownRes = dispatch(room, cancelUnknown, "cancel_disruption_unknown_name");
-    expectTrue(!cancelUnknownRes.ok(), "cancel_disruption_effect unknown name fails");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    state.params.setCybernationLevel(2);
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "cancel";
+        a.params["target_tile"] = "0";
+        expectTrue(run(adopt, state, a, "cancel_ok").ok(), "cancel ok");
+    }
+    expectTrue(state.params.getCybernationLevel() == 1, "deducts 1 Cy for cancel");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelNotAllowed = makeAction(room, "cancel_disruption_effect");
-    cancelNotAllowed.params["disruption_name"] = "COMMUNITY_LEADERS_1";
-    ActionResult cancelNotAllowedRes = dispatch(room, cancelNotAllowed, "cancel_disruption_not_cancellable");
-    expectTrue(!cancelNotAllowedRes.ok(), "cancel_disruption_effect blocks non-cancellable card");
+    // --- 2) Token effect branches
+    forceTrack(state, {TokenEffect::DEVELOP_STACK});
+    state.getTile(0)->removeOverlay();
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "0";
+        a.params["develop_to"] = "DEV_B";
+        expectTrue(run(adopt, state, a, "dev").ok(), "DEVELOP_STACK");
+        expectTrue(state.getTile(0)->getOverlay().getType() == StackType::DEV_B, "DEV_B");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelNoCost = makeAction(room, "cancel_disruption_effect");
-    cancelNoCost.params["disruption_name"] = "HURRICANE_1";
-    ActionResult cancelNoCostRes = dispatch(room, cancelNoCost, "cancel_disruption_no_cost");
-    expectTrue(cancelNoCostRes.ok(), "cancel_disruption_effect uses GameUtility cancel path");
-    expectTrue(cancelNoCostRes.message.type == "disruption_effect_cancelled",
-               "cancel_disruption_effect returns restored message type");
+    forceTrack(state, {TokenEffect::TRANSFORM_STACK});
+    {
+        Stack ov;
+        ov.setType(StackType::DEV_A);
+        state.getTile(0)->setOverlay(ov);
+    }
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "0";
+        expectTrue(run(adopt, state, a, "transform").ok(), "TRANSFORM");
+        expectTrue(state.getTile(0)->getOverlay().getType() == StackType::DEV_B, "toggle to DEV_B");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelBadTimes = makeAction(room, "cancel_disruption_effect");
-    cancelBadTimes.params["disruption_name"] = "HURRICANE_1";
-    cancelBadTimes.params["times"] = "abc";
-    ActionResult cancelBadTimesRes = dispatch(room, cancelBadTimes, "cancel_disruption_bad_times");
-    expectTrue(!cancelBadTimesRes.ok(), "cancel_disruption invalid times fails");
+    forceTrack(state, {TokenEffect::UNKNOWN});
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "0";
+        expectTrue(run(adopt, state, a, "unknown").ok(), "UNKNOWN");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action cancelTimesZero = makeAction(room, "cancel_disruption_effect");
-    cancelTimesZero.params["disruption_name"] = "HURRICANE_1";
-    cancelTimesZero.params["times"] = "0";
-    ActionResult cancelTimesZeroRes = dispatch(room, cancelTimesZero, "cancel_disruption_times_zero");
-    expectTrue(!cancelTimesZeroRes.ok(), "cancel_disruption times <= 0 fails");
+    forceTrack(state, {TokenEffect::SOLVE_DISRUPTION});
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "0";
+        expectTrue(run(adopt, state, a, "solve").ok(), "SOLVE_DISRUPTION draws");
+        expectTrue(state.activeDisruption.has_value(), "active after draw");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(0);
-    Action cancelInsufficient = makeAction(room, "cancel_disruption_effect");
-    cancelInsufficient.params["disruption_name"] = "HURRICANE_1";
-    ActionResult cancelInsufficientRes = dispatch(room, cancelInsufficient, "cancel_disruption_insufficient_resource");
-    expectTrue(cancelInsufficientRes.ok(), "GameUtility cancel path currently does not hard-fail low resource");
+    // --- 3) resolve_disruption + disruption_name
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    expectTrue(!run(adopt, state, makeAdoptAction("resolve_disruption"), "no_active").ok(),
+               "no active and no name");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(2);
-    Action cancelSuccess = makeAction(room, "cancel_disruption_effect");
-    cancelSuccess.params["disruption_name"] = "HURRICANE_1";
-    ActionResult cancelSuccessRes = dispatch(room, cancelSuccess, "cancel_disruption_success");
-    expectTrue(cancelSuccessRes.ok(), "cancel_disruption success branch works");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["disruption_name"] = "___NONE___";
+        expectTrue(!run(adopt, state, a, "bad_name").ok(), "unknown name");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action applySuccess = makeAction(room, "cancel_disruption_effect");
-    applySuccess.params["disruption_name"] = "HURRICANE_1";
-    applySuccess.params["decision"] = "apply";
-    ActionResult applySuccessRes = dispatch(room, applySuccess, "apply_disruption_success");
-    expectTrue(applySuccessRes.ok(), "disruption apply path works via GameUtility");
-    expectTrue(!room.getState().activeDisruption.has_value(), "apply path clears active disruption");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["disruption_name"] = "COMMUNITY_LEADERS_1";
+        a.params["decision"] = "cancel";
+        expectTrue(!run(adopt, state, a, "catH_cancel").ok(), "CatH needs effectIndex; fails as-is");
+    }
 
-    // --- 4b) new disruption routes in ADOPT ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().activeDisruption = std::nullopt;
-    Action adoptDraw = makeAction(room, "draw_disruption");
-    ActionResult adoptDrawRes = dispatch(room, adoptDraw, "adopt_draw_disruption");
-    expectTrue(adoptDrawRes.ok(), "ADOPT draw_disruption route works");
-    expectTrue(room.getState().activeDisruption.has_value(), "ADOPT draw creates active disruption");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["disruption_name"] = "HURRICANE_1";
+        a.params["times"] = "abc";
+        expectTrue(!run(adopt, state, a, "bad_times").ok(), "times int parse");
+    }
 
-    Action adoptCancel = makeAction(room, "cancel_disruption");
-    ActionResult adoptCancelRes = dispatch(room, adoptCancel, "adopt_cancel_disruption");
-    expectTrue(adoptCancelRes.ok(), "ADOPT cancel_disruption route works");
-    expectTrue(!room.getState().activeDisruption.has_value(), "ADOPT cancel clears active disruption");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["disruption_name"] = "HURRICANE_1";
+        a.params["times"] = "0";
+        expectTrue(!run(adopt, state, a, "times0").ok(), "times > 0");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(10);
-    room.getState().activeDisruption = mustFindDisruptionCard(room.getState(), "HURRICANE_1");
-    Action adoptResolve = makeAction(room, "resolve_disruption");
-    ActionResult adoptResolveRes = dispatch(room, adoptResolve, "adopt_resolve_disruption");
-    expectTrue(adoptResolveRes.ok(), "ADOPT resolve_disruption route works");
-    expectTrue(!room.getState().activeDisruption.has_value(), "ADOPT resolve clears active disruption");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["disruption_name"] = "HURRICANE_1";
+        ActionResult r = run(adopt, state, a, "named_hurricane");
+        expectTrue(r.ok() && r.message.type == "disruption_effect_cancelled", "named default cancel");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().activeDisruption = std::nullopt;
-    Action adoptResolveNoActive = makeAction(room, "resolve_disruption");
-    ActionResult adoptResolveNoActiveRes = dispatch(room, adoptResolveNoActive, "adopt_resolve_without_draw");
-    expectTrue(!adoptResolveNoActiveRes.ok(), "ADOPT resolve requires active disruption");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    state.params.setCybernationLevel(5);
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["disruption_name"] = "HURRICANE_1";
+        a.params["decision"] = "apply";
+        expectTrue(run(adopt, state, a, "named_apply").ok(), "named apply");
+    }
 
-    // --- 5) trade branches ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeMissingSource = makeAction(room, "trade");
-    ActionResult tradeMissingSourceRes = dispatch(room, tradeMissingSource, "trade_missing_source");
-    expectTrue(!tradeMissingSourceRes.ok(), "trade missing source fails");
+    // --- 4) draw, then cancel/resolve on a known card (random draw may need extra params to cancel)
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    expectTrue(run(adopt, state, makeAdoptAction("draw_disruption"), "draw").ok(), "draw from deck");
+    expectTrue(state.activeDisruption.has_value(), "active after draw");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeWrongSource = makeAction(room, "trade");
-    tradeWrongSource.params["source"] = "manual";
-    ActionResult tradeWrongSourceRes = dispatch(room, tradeWrongSource, "trade_wrong_source");
-    expectTrue(!tradeWrongSourceRes.ok(), "trade wrong source fails");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    state.params.setCybernationLevel(10);
+    state.activeDisruption = requireCardByName(state, "HURRICANE_1");
+    expectTrue(run(adopt, state, makeAdoptAction("cancel_disruption"), "cancel_known").ok(),
+               "cancel_disruption routes to applyDisruptionEffect(cancel=1)");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    state.activeDisruption = requireCardByName(state, "HURRICANE_1");
+    state.params.setCybernationLevel(20);
+    expectTrue(run(adopt, state, makeAdoptAction("resolve_disruption"), "resolve_plain").ok(),
+               "resolve_disruption without extra params (CatA applies)");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeMissingParams = makeAction(room, "trade");
-    tradeMissingParams.params["source"] = "disruption_cancel";
-    ActionResult tradeMissingParamsRes = dispatch(room, tradeMissingParams, "trade_missing_params");
-    expectTrue(!tradeMissingParamsRes.ok(), "trade missing params fails");
+    // --- 4b) resolve_disruption: Adopt matches GameUtility (README / per-category params)
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "HURRICANE_1");
+        expectTrue(sameResolveOutcome(adopt, s, makeAdoptAction("resolve_disruption")), "CatA Adopt=Utility");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "RISING_CRIME_1");
+        expectTrue(sameResolveOutcome(adopt, s, makeAdoptAction("resolve_disruption")), "CatB");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "CLIMATE_MIGRATION");
+        expectTrue(sameResolveOutcome(adopt, s, makeAdoptAction("resolve_disruption")), "CatC");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        GameUtility::changeTileStack(s, 0, StackType::WILD);
+        s.activeDisruption = requireCardByName(s, "GLACIAL_MELT");
+        expectTrue(sameResolveOutcome(adopt, s, makeAdoptAction("resolve_disruption")), "CatD");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "SOCIETAL_SHIFT_1");
+        expectTrue(sameResolveOutcome(adopt, s, makeAdoptAction("resolve_disruption")), "CatE");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.params.setCohesion(15);
+        s.params.setHumanRelation(5);
+        s.params.setTechnology(5);
+        s.params.setEnvironment(5);
+        s.activeDisruption = requireCardByName(s, "REBIRTH_OF_COMMUNITY_1");
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["HR"] = "2";
+        a.params["Tech"] = "2";
+        a.params["Env"] = "1";
+        expectTrue(sameResolveOutcome(adopt, s, a), "CatF distribution params");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "FOCUSSED_RESEARCH_1");
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["effectIndex"] = "0";
+        expectTrue(sameResolveOutcome(adopt, s, a), "CatG effectIndex");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "EMPATHY_1");
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["effectIndex"] = "1";
+        expectTrue(sameResolveOutcome(adopt, s, a), "CatH effectIndex");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "TECHNOLOGY_BREAKTHROUGH_1");
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["targetTiles"] = "1";
+        expectTrue(sameResolveOutcome(adopt, s, a), "CatI targetTiles");
+    }
+    {
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        GameUtility::changeTileStack(s, 0, StackType::WASTE);
+        s.activeDisruption = requireCardByName(s, "BLOOM_COVERED_PLATEAUS");
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["useOptional"] = "1";
+        expectTrue(sameResolveOutcome(adopt, s, a), "CatJ useOptional");
+    }
+    {
+        // README example shape (subset): cancel + canc tiles + effectIndex + ppl + targetTiles + useOptional
+        GameState s;
+        prepRichResources(s);
+        forceTrack(s, {TokenEffect::TURN_WILD});
+        s.activeDisruption = requireCardByName(s, "HURRICANE_1");
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["canceltiles"] = "0,1";
+        a.params["cancel"] = "1";
+        expectTrue(sameResolveOutcome(adopt, s, a), "README-style combined params (CatA cancel path)");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeBadAmount = makeAction(room, "trade");
-    tradeBadAmount.params["source"] = "disruption_cancel";
-    tradeBadAmount.params["give_param"] = "CY";
-    tradeBadAmount.params["receive_param"] = "TECH";
-    tradeBadAmount.params["give_amount"] = "x";
-    ActionResult tradeBadAmountRes = dispatch(room, tradeBadAmount, "trade_bad_amount");
-    expectTrue(!tradeBadAmountRes.ok(), "trade bad give_amount fails");
+    // --- 5) invalid types removed from Adopt
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    expectTrue(!run(adopt, state, makeAdoptAction("trade"), "trade").ok(), "no trade in Adopt");
+    expectTrue(!run(adopt, state, makeAdoptAction("commit"), "commit").ok(), "no commit");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeNonPositive = makeAction(room, "trade");
-    tradeNonPositive.params["source"] = "disruption_cancel";
-    tradeNonPositive.params["give_param"] = "CY";
-    tradeNonPositive.params["receive_param"] = "TECH";
-    tradeNonPositive.params["give_amount"] = "0";
-    ActionResult tradeNonPositiveRes = dispatch(room, tradeNonPositive, "trade_non_positive");
-    expectTrue(!tradeNonPositiveRes.ok(), "trade non-positive amount fails");
+    // --- 6) last resolve_feedback => adaptPhaseCleanup
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a = makeAdoptAction("resolve_feedback");
+        a.params["decision"] = "allow";
+        a.params["target_tile"] = "0";
+        ActionResult r = run(adopt, state, a, "last_token");
+        expectTrue(r.ok() && r.message.type == "adapt_feedback_resolved", "final message");
+        nlohmann::json pl = nlohmann::json::parse(r.message.payload);
+        expectTrue(pl.contains("adaptPhaseCleanup") && pl["adaptPhaseCleanup"]["adaptTrackFinalized"] == true,
+                   "cleanup in payload");
+    }
+    expectTrue(state.adaptTrack.empty() && state.adaptCursor == 0, "track reset");
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeUnknownParam = makeAction(room, "trade");
-    tradeUnknownParam.params["source"] = "disruption_cancel";
-    tradeUnknownParam.params["give_param"] = "BAD_PARAM";
-    tradeUnknownParam.params["receive_param"] = "TECH";
-    ActionResult tradeUnknownParamRes = dispatch(room, tradeUnknownParam, "trade_unknown_param");
-    expectTrue(!tradeUnknownParamRes.ok(), "trade unknown param fails");
+    forceTrack(state, {TokenEffect::TURN_WILD});
+    {
+        Action a;
+        a.playerId = 0;
+        a.type = "pass";
+        expectTrue(!run(adopt, state, a, "pass_rejected").ok(), "pass not allowed in Adopt");
+    }
 
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeSameParam = makeAction(room, "trade");
-    tradeSameParam.params["source"] = "disruption_cancel";
-    tradeSameParam.params["give_param"] = "CY";
-    tradeSameParam.params["receive_param"] = "CY";
-    ActionResult tradeSameParamRes = dispatch(room, tradeSameParam, "trade_same_param");
-    expectTrue(!tradeSameParamRes.ok(), "trade same param fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action tradeCohesion = makeAction(room, "trade");
-    tradeCohesion.params["source"] = "disruption_cancel";
-    tradeCohesion.params["give_param"] = "CO";
-    tradeCohesion.params["receive_param"] = "TECH";
-    ActionResult tradeCohesionRes = dispatch(room, tradeCohesion, "trade_cohesion_blocked");
-    expectTrue(!tradeCohesionRes.ok(), "trade cohesion blocked");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(0);
-    Action tradeInsufficient = makeAction(room, "trade");
-    tradeInsufficient.params["source"] = "disruption_cancel";
-    tradeInsufficient.params["give_param"] = "CY";
-    tradeInsufficient.params["receive_param"] = "TECH";
-    tradeInsufficient.params["give_amount"] = "1";
-    ActionResult tradeInsufficientRes = dispatch(room, tradeInsufficient, "trade_insufficient");
-    expectTrue(!tradeInsufficientRes.ok(), "trade insufficient resource fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    room.getState().params.setCybernationLevel(2);
-    int techBefore = room.getState().params.getTechnology();
-    Action tradeSuccess = makeAction(room, "trade");
-    tradeSuccess.params["source"] = "disruption_cancel";
-    tradeSuccess.params["give_param"] = "CY";
-    tradeSuccess.params["receive_param"] = "TECH";
-    tradeSuccess.params["give_amount"] = "1";
-    tradeSuccess.params["receive_amount"] = "1";
-    ActionResult tradeSuccessRes = dispatch(room, tradeSuccess, "trade_success");
-    expectTrue(tradeSuccessRes.ok(), "trade success branch works");
-    expectTrue(room.getState().params.getTechnology() == techBefore + 1, "trade increases receive resource");
-
-    // --- 6) commit branches ---
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action commitEarly = makeAction(room, "commit");
-    ActionResult commitEarlyRes = dispatch(room, commitEarly, "commit_before_complete");
-    expectTrue(!commitEarlyRes.ok(), "commit before completion fails");
-
-    forceAdaptState(room, {TokenEffect::TURN_WILD});
-    Action finishOne = makeAction(room, "resolve_feedback");
-    finishOne.params["decision"] = "allow";
-    finishOne.params["target_tile"] = "0";
-    ActionResult finishOneRes = dispatch(room, finishOne, "commit_setup_resolve");
-    expectTrue(finishOneRes.ok(), "commit setup resolve succeeds");
-    Action commitOk = makeAction(room, "commit");
-    ActionResult commitOkRes = dispatch(room, commitOk, "commit_success");
-    expectTrue(commitOkRes.ok(), "commit success branch works");
-
-    std::cout << "=== Adapt Branch Coverage Finished ===" << std::endl;
+    std::cout << "=== Finished ===" << std::endl;
     std::cout << "Total failures: " << gFailures << std::endl;
     return gFailures == 0 ? 0 : 1;
 }

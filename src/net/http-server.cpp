@@ -42,19 +42,8 @@ int main()
  
     /* POST /test/action — bypass RoundController, invoke PhaseHandler directly
      *
-     * Request body:
-     * {
-     *     "phase": "ENVISION" | "TRAVERSE" | "ADOPT",
-     *     "playerId": 0,
-     *     "type": "draw_disruption",
-     *     "params": { ... }
-     * }
-     *
-     * Response:
-     * {
-     *     "status": 0,
-     *     "message": { "type": "...", "payload": "..." }
-     * }
+     * Response merges ActionResult with the same gameState + controller as GET /state
+     * so clients see updated board/params in one round-trip.
      */
     server.Post("/test/action", [&](const httplib::Request& req, httplib::Response& res) {
         /* Parse request body */
@@ -99,7 +88,10 @@ int main()
         }
  
         ActionResult result = handler->handle(action, room.getState());
-        res.set_content(actionResultToJson(result).dump(2), "application/json");
+        json response = actionResultToJson(result);
+        response["gameState"]  = room.getState().toJson();
+        response["controller"] = room.getController().toJson();
+        res.set_content(response.dump(2), "application/json");
     });
  
     std::cout << "Cybernation server listening on 0.0.0.0:8080\n";

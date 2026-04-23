@@ -36,7 +36,8 @@
 }
 ```
 
-**4. Set Course**
+**4. Set Course**  
+`move_people`: the people token may only be placed on a **map edge** — a hex **side** with no neighbor tile in `data/layout.json` (outer perimeter). Example: tile `3` has edge sides `1` and `3`; side `4` faces another tile and will fail.
 ```json
 {
     "phase": "ENVISION",
@@ -45,10 +46,12 @@
     "params": {
         "mode": "move_people",
         "tile": 3,
-        "side": 4
+        "side": 1
     }
 }
+```
 
+```json
 {
     "phase": "ENVISION",
     "playerId": 0,
@@ -59,7 +62,6 @@
         "degree": 2
     }
 }
-
 ```
 
 **5. Connect**
@@ -87,17 +89,8 @@
 }
 ```
 
-**7. Fill feedback track**
-```json
-{
-    "phase": "ENVISION",
-    "playerId": 0,
-    "type": "fill_track",
-    "params": {
-        "playerId": 1
-    }
-}
-```
+**7. Feedback track (not an action)**  
+The server builds the token bag from the current board, shuffles, and fills 11 `adaptTrack` slots when Adapt first needs the track (e.g. before the first `resolve_feedback`). The client reads track state from `gameState` / snapshot; there is no `fill_track` request.
 
 <br></br>
 
@@ -164,3 +157,63 @@ CatK:              { "src": "HR", "dst": "Tech", "amount": "1" }
 
 <br></br>
 ### `Adapt Phase`
+
+**1. Resolve feedback**
+```json
+{
+    "phase": "ADOPT",
+    "playerId": 0,
+    "type": "resolve_feedback",
+    "params": {
+        "target_tile": "0",
+        "decision": "allow"
+    }
+}
+```
+
+**2. Draw disruption**
+```json
+{
+    "phase": "ADOPT",
+    "playerId": 0,
+    "type": "draw_disruption"
+}
+```
+
+**3. Resolve disruption** (see Traverse Section 3 for `params` / Category fields; optional `disruption_name`, `times`, `decision` on same `type`)
+```json
+{
+    "phase": "ADOPT",
+    "playerId": 0,
+    "type": "resolve_disruption",
+    "params": {
+        "cancel": "1",
+        "canceltiles": "1,3,5",
+        "effectIndex": "0,1,0",
+        "targetTiles": "2,5",
+        "useOptional": "1",
+        "ppl": "3,4",
+        "resourceDistribution": {
+            "HR": "2",
+            "Tech": "2",
+            "Env": "1"
+        },
+        "trade": {
+            "src": "HR",
+            "dst": "Tech",
+            "amount": "1"
+        }
+    }
+}
+```
+
+**4. Cancel disruption**
+```json
+{
+    "phase": "ADOPT",
+    "playerId": 0,
+    "type": "cancel_disruption"
+}
+```
+
+<br></br>
