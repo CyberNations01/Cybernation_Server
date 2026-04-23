@@ -20,7 +20,7 @@
 {
     "phase": "TRAVERSE",
     "playerId": 0,
-    "type": "resolve_disruption"
+    "type": "draw_disruption"
 }
 ```
 

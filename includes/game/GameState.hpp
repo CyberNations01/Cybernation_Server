@@ -41,7 +41,7 @@ public:
     FeedbackTokenManager tokenManager;
 
     CardManager<DisruptionCard> disruptionManager;
-    CardManager<Goal> goalManager;    
+    CardManager<Goal>  goalManager;    
     CardManager<Stack> wildStackManager;
     CardManager<Stack> wasteStackManager;
     CardManager<Stack> devAStackManager;
@@ -53,8 +53,6 @@ public:
     Goal      currentGoal;
     
     std::optional<DisruptionCard> activeDisruption = std::nullopt;
-
-    // --- Adapt phase runtime state ---
     std::vector<TokenEffect> adaptTrack;
     int adaptCursor = 0;
 
@@ -63,9 +61,9 @@ public:
     const std::pair<int, int> & getPeopleToken() const {return this->peopleToken;};
     const std::vector<Tile>& getBoard() const { return board; }
     Tile* getTile(int position);
-    Player*      getPlayer(int id);
+    Player* getPlayer(int id);
 
-    void setPeopleToken(const std::pair<int,int> & pos);
+    bool setPeopleToken(const std::pair<int, int>& pos);
     int  findFirstPlayer() const;
     void rebuildTokenBag();
     void syncTokenBagFromManager();
