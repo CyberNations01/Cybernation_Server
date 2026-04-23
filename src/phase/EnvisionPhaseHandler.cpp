@@ -1,6 +1,7 @@
 #include "phase/EnvisionPhaseHandler.hpp"
 
-ActionResult EnvisionPhaseHandler::handle(const Action& action, GameState& state) {
+ActionResult EnvisionPhaseHandler::handle(const Action& action, GameState& state)
+{
     // "pass" is valid in every phase — RoundController handles the pass 
     // mechanics, but we still return SUCCESS so it knows to proceed.
 
@@ -43,12 +44,11 @@ bool EnvisionPhaseHandler::tryParseInt(const std::string& s, int& value)
     }
 }
 
-
 /** 
  * Shit Power 
  * - Cost: 1 HR
- * - 
-*/
+ * - Gain: 1 Co
+ */
 ActionResult EnvisionPhaseHandler::handleShiftPower(const Action& action, GameState& state)
 {
     auto it = action.params.find("targetPlayerId");
@@ -105,7 +105,7 @@ ActionResult EnvisionPhaseHandler::handleComeTogether(const Action& action, Game
  * Prepare: 
  * - Cost: 2 Hr
  * - Gain: 1 Cy
-*/
+ */
 ActionResult EnvisionPhaseHandler::handlePrepare(const Action& action, GameState& state)
 {
     int totalCost = 2;
@@ -263,11 +263,10 @@ ActionResult EnvisionPhaseHandler::handleConnect(const Action& action, GameState
     state.params.adjustParam(gain, +1);
 
     return ActionResult::success({
-    "info",
-    "Spent 2 " + cyberParameterToLabel(cost) + " and gained 1 " + cyberParameterToLabel(gain)
-});
+        "info",
+        "Spent 2 " + cyberParameterToLabel(cost) + " and gained 1 " + cyberParameterToLabel(gain)
+    });
 }
-
 
 /**
  * Steer:
@@ -321,9 +320,9 @@ ActionResult EnvisionPhaseHandler::handleDrawFeedbackTrack(const Action& action,
         return ActionResult::invalid({"Envision: ", "Only first player could draw feedback track"});
 
     /* TODO: Draw token and fill feedback track */
-
     return ActionResult::success({
         "Envision: ",
         "First player drew feedback tokens and filled the feedback track"
     });
+
 }

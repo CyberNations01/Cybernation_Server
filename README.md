@@ -2,9 +2,106 @@
 
 
 
-### Client request format
+### Request Action JSON format
 
-#### `Traverse Phase`
+### `Envision Phase`
+
+**1. Shift Power**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "shift_power",
+    "params": {
+        "targetPlayerId": 1
+    }
+}
+```
+
+**2. Come Together**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "come_together"
+}
+```
+
+**3. Prepare**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "prepare"
+}
+```
+
+**4. Set Course**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "set_course",
+    "params": {
+        "mode": "move_people",
+        "tile": 3,
+        "side": 4
+    }
+}
+
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "set_course",
+    "params": {
+        "mode": "rotate",
+        "tile": 3,
+        "degree": 2
+    }
+}
+
+```
+
+**5. Connect**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "connect",
+    "params": {
+        "cost": "HR",
+        "gain": "Tech"
+    }
+}
+```
+
+**6. Steer**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "steer",
+    "params": {
+        "tokenType": "SOLVE_DISRUPTION"
+    }
+}
+```
+
+**7. Fill feedback track**
+```json
+{
+    "phase": "ENVISION",
+    "playerId": 0,
+    "type": "fill_track",
+    "params": {
+        "playerId": 1
+    }
+}
+```
+
+<br></br>
+
+### `Traverse Phase`
 
 **1. Walk People Token**
 ```json
@@ -65,5 +162,5 @@ CatJ:              { "useOptional": "1" }
 CatK:              { "src": "HR", "dst": "Tech", "amount": "1" }
 ```
 
-
-
+<br></br>
+### `Adapt Phase`
