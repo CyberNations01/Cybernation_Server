@@ -77,7 +77,8 @@ enum class comparator {
     GT, GE, EQ, LE, LT, NE
 };
 
-inline bool parseCyberParameter(const std::string& raw, CyberParameter& out) {
+inline bool parseCyberParameter(const std::string& raw, CyberParameter& out)
+{
     if (raw == "Co" || raw == "CO" || raw == "COHESION") {
         out = CyberParameter::COHESION; return true;
     }

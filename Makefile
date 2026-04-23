@@ -6,7 +6,8 @@ LOAD_TARGET      = out/testLoadJson
 ADAPT_TARGET     = out/testAdaptSimulation
 CATEGORY_TARGET  = out/testDisruptionCategories
 TRAVERSE_TARGET  = out/testTraverseDisruption
- 
+
+
 SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/core/FeedbackPool.cpp \
           $(SRCDIR)/core/FeedbackTokenManager.cpp \
@@ -22,7 +23,8 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/EnvisionPhaseHandler.cpp \
           $(SRCDIR)/phase/TraversePhaseHandler.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
-          $(SRCDIR)/game/GameUtility.cpp
+          $(SRCDIR)/game/GameUtility.cpp \
+#           $(SRCDIR)/test/EnvisionPhaseTest.cpp
 
 
 COMMON_OBJECTS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SOURCES))

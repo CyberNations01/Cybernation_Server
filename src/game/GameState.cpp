@@ -34,7 +34,8 @@ void GameState::randomizeBoard()
     }
 }
 
-GameState::GameState() {
+GameState::GameState()
+{
     for (int i = 0; i < NUM_PLAYERS; ++i)
         players[i] = Player(i);
     players[0].setFirstPlayer(true);
@@ -78,17 +79,19 @@ Player* GameState::getPlayer(int id)
     return &players[id];
 }
 
-void GameState::setPeopleToken(const std::pair<int, int>& pos)
+bool GameState::setPeopleToken(const std::pair<int, int>& pos)
 {
     int tile = pos.first, side = pos.second;
     if (tile < 0 || side < 0 || tile >= NUM_TILE || side >= Tile::TILE_SIDES)
-        return;
+        return false;
     
     Tile t = board[tile];
     // ! People Token must stand on the edge 
-    if (t.getNeighbourTile(side) == -1) {
-        peopleToken = pos;
-    }
+    if (t.getNeighbourTile(side) != -1)
+        return false;
+        
+    peopleToken = pos;
+    return true;
 }
 
 int GameState::findFirstPlayer() const
@@ -132,7 +135,8 @@ void GameState::setTokenBag(const std::vector<TokenEffect>& nextBag)
     syncTokenBagFromManager();
 }
 
-bool GameState::isActiveGoalMet() const {
+bool GameState::isActiveGoalMet() const
+{
     const auto& conditions = currentGoal.getConditions();
     if (conditions.empty()) return false;
 
@@ -185,7 +189,8 @@ bool GameState::isActiveGoalMet() const {
     return true;
 }
 
-nlohmann::json GameState::toJson() const {
+nlohmann::json GameState::toJson() const
+{
     nlohmann::json j;
 
     // Game progress
@@ -224,12 +229,16 @@ nlohmann::json GameState::toJson() const {
         {"transform",      pool.getTransform()},
         {"totalRemaining", pool.getPoolSize()}
     };
+    
+    // Token bag
+    j["tokenBagCount"] = static_cast<int>(tokenBag.size());
 
     j["adapt"] = {
         {"trackSize", static_cast<int>(adaptTrack.size())},
         {"cursor", adaptCursor},
         {"complete", (!adaptTrack.empty() && adaptCursor >= static_cast<int>(adaptTrack.size()))}
     };
+
 
     // Players
     j["players"] = nlohmann::json::array();
@@ -254,6 +263,7 @@ nlohmann::json GameState::toJson() const {
     return j;
 }
 
-std::string GameState::snapshot() const {
+std::string GameState::snapshot() const
+{
     return toJson().dump(2);
 }
