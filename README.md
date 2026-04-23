@@ -36,7 +36,8 @@
 }
 ```
 
-**4. Set Course**
+**4. Set Course**  
+`move_people`: the people token may only be placed on a **map edge** — a hex **side** with no neighbor tile in `data/layout.json` (outer perimeter). Example: tile `3` has edge sides `1` and `3`; side `4` faces another tile and will fail.
 ```json
 {
     "phase": "ENVISION",
@@ -45,10 +46,12 @@
     "params": {
         "mode": "move_people",
         "tile": 3,
-        "side": 4
+        "side": 1
     }
 }
+```
 
+```json
 {
     "phase": "ENVISION",
     "playerId": 0,
@@ -59,7 +62,6 @@
         "degree": 2
     }
 }
-
 ```
 
 **5. Connect**

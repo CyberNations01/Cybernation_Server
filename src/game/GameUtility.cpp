@@ -90,7 +90,7 @@ ActionResult GameUtility::walkPath(GameState &state)
     if (state.setPeopleToken(tokenLocation))
         return ActionResult::success(ActionMessage("walkPath", resJson.dump()));
     else 
-        return ActionResult::invalid({"walkPath: ", "Set People Token failed"});
+        return {ActionStatus::INVALID_ACTION, {"walkPath", "Set People Token failed"}};
 }
 
 ActionResult GameUtility::drawDisruption(GameState& state)
