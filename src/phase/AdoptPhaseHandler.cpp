@@ -56,6 +56,90 @@ AdaptRuntimeState& runtimeFor(GameState& state) {
     return runtime;
 }
 
+const DisruptionCard* findDisruptionCardByName(const GameState& state, const std::string& name) {
+    for (const auto& card : state.disruptionManager.getDeck()) {
+        if (card.getName() == name) return &card;
+    }
+    for (const auto& card : state.disruptionManager.getDiscard()) {
+        if (card.getName() == name) return &card;
+    }
+    if (state.activeDisruption.has_value() && state.activeDisruption->getName() == name) {
+        return &(*state.activeDisruption);
+    }
+    return nullptr;
+}
+
+ActionResult applyDisruptionByNameRepeated(const Action& action, GameState& state) {
+    auto nameIt = action.params.find("disruption_name");
+    if (nameIt == action.params.end()) {
+        return fail(ActionStatus::INVALID_ACTION, "resolve_disruption requires disruption_name for named repeat");
+    }
+
+    const DisruptionCard* card = findDisruptionCardByName(state, nameIt->second);
+    if (!card) {
+        return fail(ActionStatus::INVALID_TARGET, "Unknown disruption_name");
+    }
+
+    std::string decision = "cancel";
+    auto decisionIt = action.params.find("decision");
+    if (decisionIt != action.params.end()) {
+        decision = decisionIt->second;
+    }
+    if (decision != "cancel" && decision != "apply") {
+        return fail(ActionStatus::INVALID_ACTION, "decision must be 'cancel' or 'apply'");
+    }
+
+    int times = 1;
+    auto timesIt = action.params.find("times");
+    if (timesIt != action.params.end()) {
+        try {
+            times = std::stoi(timesIt->second);
+        } catch (...) {
+            return fail(ActionStatus::INVALID_ACTION, "times must be integer");
+        }
+    }
+    if (times <= 0) {
+        return fail(ActionStatus::INVALID_ACTION, "times must be > 0");
+    }
+
+    nlohmann::json details = nlohmann::json::array();
+    int processed = 0;
+    for (int i = 0; i < times; ++i) {
+        state.activeDisruption = *card;
+
+        Action routed = action;
+        routed.type = "resolve_disruption";
+
+        if (decision == "cancel") {
+            routed.params["cancel"] = "1";
+        } else {
+            routed.params.erase("cancel");
+        }
+
+        ActionResult utilResult = GameUtility::applyDisruptionEffect(state, routed);
+        if (!utilResult.ok()) {
+            return fail(utilResult.status, utilResult.message.payload);
+        }
+
+        details.push_back({
+            {"step", i + 1},
+            {"type", utilResult.message.type},
+            {"payload", utilResult.message.payload}
+        });
+        ++processed;
+    }
+
+    nlohmann::json payload = {
+        {"disruptionName", card->getName()},
+        {"decision", decision},
+        {"times", times},
+        {"processed", processed},
+        {"cancelApplied", decision == "cancel"},
+        {"details", details}
+    };
+    return ActionResult::success(ActionMessage("disruption_effect_cancelled", payload.dump()));
+}
+
 }
 
 bool AdoptPhaseHandler::isTileOccupiedForAdaptPrompt(const GameState& state, int tilePos) {
@@ -69,38 +153,45 @@ bool AdoptPhaseHandler::isTileOccupiedForAdaptPrompt(const GameState& state, int
 
 ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
     if (action.isPass()) {
-        return ActionResult::success(ActionMessage("status", "Player passed"));
+        return fail(ActionStatus::INVALID_ACTION, "Pass is not allowed during Adopt phase");
     }
 
     if (action.type == "resolve_feedback") {
         return handleResolveFeedback(action, state);
     }
-    if (action.type == "cancel_disruption_effect") {
-        return handleCancelDisruptionEffect(action, state);
-    }
-    // Align Adopt with Traverse disruption flow:
-    // draw -> resolve -> cancel
+    // Disruption: same as Traverse — only drawDisruption / applyDisruptionEffect (activeDisruption in state).
     if (action.type == "draw_disruption") {
         return GameUtility::drawDisruption(state);
     }
     if (action.type == "resolve_disruption") {
-        ActionResult res = GameUtility::applyDisruptionEffect(state, action);
-        if (res.ok()) {
-            state.activeDisruption = std::nullopt;
+        if (action.params.find("disruption_name") != action.params.end()) {
+            return applyDisruptionByNameRepeated(action, state);
         }
-        return res;
+        return GameUtility::applyDisruptionEffect(state, action);
     }
-    
-    if (action.type == "trade") {
-        return handleTrade(action, state);
-    }
-
-    if (action.type == "commit") {
-        return handleCommit(action, state);
+    if (action.type == "cancel_disruption") {
+        Action routed = action;
+        routed.params["cancel"] = "1";
+        return GameUtility::applyDisruptionEffect(state, routed);
     }
 
     return fail(ActionStatus::INVALID_ACTION,
                 "Action '" + action.type + "' is not valid during Adopt phase");
+}
+
+bool AdoptPhaseHandler::fillFeedbackTrackFromCurrentBoard(GameState& state) {
+    state.rebuildTokenBag();
+    if (state.tokenBag.empty()) {
+        return false;
+    }
+    state.setTokenBag(state.tokenBag);
+    if (!state.tokenManager.drawTrackFromBag(GameState::FEEDBACK_TRACK_SIZE)) {
+        return false;
+    }
+    state.adaptTrack = state.tokenManager.getTrack();
+    state.adaptCursor = 0;
+    state.syncTokenBagFromManager();
+    return !state.adaptTrack.empty();
 }
 
 bool AdoptPhaseHandler::ensureAdaptTrackInitialized(GameState& state) {
@@ -108,21 +199,9 @@ bool AdoptPhaseHandler::ensureAdaptTrackInitialized(GameState& state) {
         runtimeFor(state);
         return true;
     }
-
-    if (state.tokenManager.getBag().empty()) {
-        if (!state.tokenBag.empty()) {
-            state.tokenManager.setBag(state.tokenBag);
-            state.syncTokenBagFromManager();
-        } else {
-            state.rebuildTokenBag();
-        }
+    if (!fillFeedbackTrackFromCurrentBoard(state)) {
+        return false;
     }
-    if (state.tokenManager.getBag().empty()) return false;
-    if (!state.tokenManager.drawTrackFromBag(GameState::NUM_TILE)) return false;
-
-    state.adaptTrack = state.tokenManager.getTrack();
-    state.syncTokenBagFromManager();
-    state.adaptCursor = 0;
     runtimeFor(state);
     return true;
 }
@@ -137,19 +216,6 @@ bool AdoptPhaseHandler::isAdaptTileAvailable(GameState& state, int tilePos) cons
     AdaptRuntimeState& runtime = runtimeFor(state);
     if (runtime.tileOccupied.empty()) return true;
     return !runtime.tileOccupied[tilePos];
-}
-
-const DisruptionCard* AdoptPhaseHandler::findDisruptionCardByName(const GameState& state, const std::string& name) const {
-    for (const auto& card : state.disruptionManager.getDeck()) {
-        if (card.getName() == name) return &card;
-    }
-    for (const auto& card : state.disruptionManager.getDiscard()) {
-        if (card.getName() == name) return &card;
-    }
-    if (state.activeDisruption.has_value() && state.activeDisruption->getName() == name) {
-        return &(*state.activeDisruption);
-    }
-    return nullptr;
 }
 
 ActionResult AdoptPhaseHandler::handleResolveFeedback(const Action& action, GameState& state) {
@@ -225,74 +291,49 @@ ActionResult AdoptPhaseHandler::handleResolveFeedback(const Action& action, Game
         {"cybernationLevel", state.params.getCybernationLevel()},
         {"cohesion", state.params.getCohesion()}
     };
+    if (isAdaptComplete(state)) {
+        payload["adaptPhaseCleanup"] = finalizeAdaptPhaseCleanup(state);
+    }
     return ActionResult::success(ActionMessage("adapt_feedback_resolved", payload.dump()));
 }
 
-ActionResult AdoptPhaseHandler::handleCancelDisruptionEffect(const Action& action, GameState& state) {
-    auto nameIt = action.params.find("disruption_name");
-    if (nameIt == action.params.end()) {
-        return fail(ActionStatus::INVALID_ACTION, "cancel_disruption_effect requires disruption_name");
-    }
+nlohmann::json AdoptPhaseHandler::finalizeAdaptPhaseCleanup(GameState& state) {
+    AdaptRuntimeState& runtime = runtimeFor(state);
 
-    const DisruptionCard* card = findDisruptionCardByName(state, nameIt->second);
-    if (!card) {
-        return fail(ActionStatus::INVALID_TARGET, "Unknown disruption_name");
-    }
+    // Rulebook step 2: return face-up on inner + four outer to bag; others to reserve.
+    std::array<bool, GameState::NUM_TILE> returnable{};
+    returnable.fill(false);
+    returnable[0] = true;
+    for (int t = 7; t <= 10; ++t) returnable[t] = true;
 
-    std::string decision = "cancel";
-    auto decisionIt = action.params.find("decision");
-    if (decisionIt != action.params.end()) {
-        decision = decisionIt->second;
-    }
-    if (decision != "cancel" && decision != "apply") {
-        return fail(ActionStatus::INVALID_ACTION, "decision must be 'cancel' or 'apply'");
-    }
+    std::vector<TokenEffect> nextBag;
+    int returnedToBag = 0;
+    int discarded = 0;
+    for (int i = 0; i < static_cast<int>(state.adaptTrack.size()); ++i) {
+        const int tilePos = (i < static_cast<int>(runtime.placedOn.size())) ? runtime.placedOn[i] : -1;
+        const bool cancelled = (i < static_cast<int>(runtime.cancelled.size())) ? runtime.cancelled[i] : true;
+        if (tilePos < 0 || tilePos >= GameState::NUM_TILE) continue;
 
-    int times = 1;
-    auto timesIt = action.params.find("times");
-    if (timesIt != action.params.end()) {
-        try {
-            times = std::stoi(timesIt->second);
-        } catch (...) {
-            return fail(ActionStatus::INVALID_ACTION, "times must be integer");
+        if (!cancelled && returnable[tilePos]) {
+            nextBag.push_back(state.adaptTrack[i]);
+            ++returnedToBag;
+        } else {
+            state.pool.putBack(state.adaptTrack[i]);
+            ++discarded;
         }
     }
-    if (times <= 0) {
-        return fail(ActionStatus::INVALID_ACTION, "times must be > 0");
-    }
+    state.setTokenBag(nextBag);
+    state.adaptTrack.clear();
+    state.adaptCursor = 0;
+    resetRuntimeFromTrack(runtime, std::vector<TokenEffect>{});
 
-    nlohmann::json details = nlohmann::json::array();
-    int processed = 0;
-    for (int i = 0; i < times; ++i) {
-        state.activeDisruption = *card;
-
-        // Reuse the same disruption routes exposed by this phase
-        // to keep behavior aligned with draw/resolve/cancel actions.
-        Action routed = action;
-        routed.type = (decision == "cancel") ? "cancel_disruption" : "resolve_disruption";
-        ActionResult utilResult = handle(routed, state);
-
-        if (!utilResult.ok()) {
-            return fail(utilResult.status, utilResult.message.payload);
-        }
-
-        details.push_back({
-            {"step", i + 1},
-            {"type", utilResult.message.type},
-            {"payload", utilResult.message.payload}
-        });
-        ++processed;
-    }
-
-    nlohmann::json payload = {
-        {"disruptionName", card->getName()},
-        {"decision", decision},
-        {"times", times},
-        {"processed", processed},
-        {"cancelApplied", decision == "cancel"},
-        {"details", details}
+    // Victory / turn-5 and phase advance are owned by RoundController (TBD).
+    return {
+        {"adaptTrackFinalized", true},
+        {"returnedToBag", returnedToBag},
+        {"discardedToReserve", discarded},
+        {"bagSize", static_cast<int>(state.tokenBag.size())}
     };
-    return ActionResult::success(ActionMessage("disruption_effect_cancelled", payload.dump()));
 }
 
 bool AdoptPhaseHandler::isValidTargetForCursor(int cursor, int tilePos) const {
@@ -382,75 +423,4 @@ ActionResult AdoptPhaseHandler::applyFeedbackEffect(TokenEffect effect, int tile
         default:
             return ActionResult::success(ActionMessage("adapt_effect_applied", R"({"effect":"UNKNOWN","ignored":true})"));
     }
-}
-
-
-ActionResult AdoptPhaseHandler::handleTrade(const Action& action, GameState& state) {
-    return GameUtility::tradeForDisruption(state, action);
-}
-
-
-
-ActionResult AdoptPhaseHandler::handleCommit(const Action& action, GameState& state) {
-    (void)action;
-    if (!ensureAdaptTrackInitialized(state)) {
-        return fail(ActionStatus::UNKNOWN_ERROR, "Adapt track could not be initialized");
-    }
-    if (!isAdaptComplete(state)) {
-        return fail(ActionStatus::INVALID_ACTION, "Cannot commit: Adapt feedback is not fully resolved");
-    }
-    AdaptRuntimeState& runtime = runtimeFor(state);
-
-    // Adapt step 2:
-    // Return face-up feedback tokens on INNER+OUTER stacks to bag.
-    // Discard all others to reserve (not persisted in current data model).
-    std::array<bool, GameState::NUM_TILE> returnable{};
-    returnable.fill(false);
-    returnable[0] = true;  // inner
-    for (int t = 7; t <= 10; ++t) returnable[t] = true; // outer
-
-    std::vector<TokenEffect> nextBag;
-    int returnedToBag = 0;
-    int discarded = 0;
-    for (int i = 0; i < static_cast<int>(state.adaptTrack.size()); ++i) {
-        const int tilePos = (i < static_cast<int>(runtime.placedOn.size())) ? runtime.placedOn[i] : -1;
-        const bool cancelled = (i < static_cast<int>(runtime.cancelled.size())) ? runtime.cancelled[i] : true;
-        if (tilePos < 0 || tilePos >= GameState::NUM_TILE) continue;
-
-        if (!cancelled && returnable[tilePos]) {
-            nextBag.push_back(state.adaptTrack[i]);
-            ++returnedToBag;
-        } else {
-            // "Discard to reserve" means tokens return to the finite pool.
-            state.pool.putBack(state.adaptTrack[i]);
-            ++discarded;
-        }
-    }
-    state.setTokenBag(nextBag);
-
-    // Adapt step 3 (simplified for current milestone):
-    // Only check active Goal completion.
-    // TODO: Re-introduce turn-track end condition and full game outcomes
-    // once Role/Agenda pipeline is implemented.
-    const bool goalMet = state.isActiveGoalMet();
-    const bool turnLimitReached = false;
-    // if (goalMet) {
-    //     state.gameOver = true;
-    // }
-
-    nlohmann::json payload = {
-        {"returnedToBag", returnedToBag},
-        {"discardedToReserve", discarded},
-        {"bagSize", static_cast<int>(state.tokenBag.size())},
-        {"goalMet", goalMet},
-        {"turnLimitReached", turnLimitReached},
-        // {"gameOver", state.gameOver},
-        // {"nextAction", state.gameOver ? "END_GAME" : "START_NEW_TURN"},
-        {"outcomeResolution", "TODO_ROLE_AGENDA_NOT_ENABLED"}
-    };
-
-    // Commit closes the current Adapt runtime window.
-    resetRuntimeFromTrack(runtime, std::vector<TokenEffect>{});
-
-    return ActionResult::success(ActionMessage("adapt_commit", payload.dump()));
 }

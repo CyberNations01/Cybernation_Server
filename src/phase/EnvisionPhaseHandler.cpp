@@ -23,9 +23,6 @@ ActionResult EnvisionPhaseHandler::handle(const Action& action, GameState& state
     if (action.type == "steer")
         return handleSteer(action, state);
 
-    if (action.type == "fill_track")
-        return handleDrawFeedbackTrack(action, state);
-
     return ActionResult::invalid("Unknown envision action: " + action.type);
 }
 
@@ -303,26 +300,4 @@ ActionResult EnvisionPhaseHandler::handleSteer(const Action& action, GameState& 
         "Envision: ",
         "Feedback token " + tokenEffectToStr(effect) + " added from reserve to bag"
     });
-}
-
-ActionResult EnvisionPhaseHandler::handleDrawFeedbackTrack(const Action& action, GameState& state)
-{
-    if (action.params.find("playerId") == action.params.end())
-        return ActionResult::invalid({"Envision: ", "playerId is missed"});
-
-    int playerId = -1;
-    Player *player = nullptr;
-
-    if (!tryParseInt(action.params.at("playerId"), playerId))
-        return ActionResult::invalid({"Envision: ", "playerId is missing"});
-
-    if ((player = state.getPlayer(playerId)) && player->isFirstPlayer())
-        return ActionResult::invalid({"Envision: ", "Only first player could draw feedback track"});
-
-    /* TODO: Draw token and fill feedback track */
-    return ActionResult::success({
-        "Envision: ",
-        "First player drew feedback tokens and filled the feedback track"
-    });
-
 }

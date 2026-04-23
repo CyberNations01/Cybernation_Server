@@ -1,6 +1,12 @@
 #include "game/GameUtility.hpp"
 #include <sstream>
 
+namespace {
+void clearActiveDisruption(GameState& state) {
+    state.activeDisruption = std::nullopt;
+}
+}  // namespace
+
 nlohmann::json 
 GameUtility::pathResultToJson(const int& tile, const int& side, 
                 const std::vector<std::string> & resources, 
@@ -322,6 +328,7 @@ std::optional<ActionResult> GameUtility::cancelCard(GameState &state,
                 else
                     return ActionResult::invalid("Not enough resources to cancel");
             }
+        clearActiveDisruption(state);
         return ActionResult::success(ActionMessage("resolve_disruption", "Disruption is resolved"));
     }
     return std::nullopt;
@@ -450,8 +457,10 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
         std::vector<int> filteredStack = filterTilesByStackCondition(state, card.getStackTargets(), card);
 
         /* No action if no stack meet card criteria */
-        if (filteredStack.size() == 0)
+        if (filteredStack.size() == 0) {
+            clearActiveDisruption(state);
             return ActionResult::success(ActionMessage("resolve_disruption", "No applicable stack"));
+        }
 
         /* Extract "effectIndex" from client request*/
         if (clientReq.find("effectIndex") == clientReq.end())
@@ -517,8 +526,10 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
      * 4. Apply Cost
      */
     else if (category == "CatI") {
-        if (clientReq.find("targetTiles") == clientReq.end())
+        if (clientReq.find("targetTiles") == clientReq.end()) {
+            clearActiveDisruption(state);
             return ActionResult::success(ActionMessage("resolve_disruption", "No development"));
+        }
         
         std::vector<int> targetTiles = parseIntList(clientReq.at("targetTiles"));
 
@@ -582,6 +593,7 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
         }
     }
 
+    clearActiveDisruption(state);
     return ActionResult::success(ActionMessage("resolve_disruption", "Disruption is resolved"));
 }
 
@@ -622,5 +634,6 @@ ActionResult GameUtility::tradeForDisruption(GameState& state, const Action& act
     state.params.adjustParam(src, -amount);
     state.params.adjustParam(dst, amount);
 
+    clearActiveDisruption(state);
     return ActionResult::success(ActionMessage("trade", "Trade completed"));
 }
