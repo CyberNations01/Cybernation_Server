@@ -44,7 +44,7 @@ bool EnvisionPhaseHandler::tryParseInt(const std::string& s, int& value)
 /** 
  * Shit Power 
  * - Cost: 1 HR
- * - Gain: 1 Co
+ * - Effect: First player token held by Player "targetPlayerId"
  */
 ActionResult EnvisionPhaseHandler::handleShiftPower(const Action& action, GameState& state)
 {

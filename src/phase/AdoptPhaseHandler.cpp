@@ -17,13 +17,15 @@ std::string stackTypeToLabel(StackType type) {
     }
 }
 
-std::string ringLabelForCursor(int cursor) {
+std::string ringLabelForCursor(int cursor)
+{
     if (cursor <= 0) return "INNER";
     if (cursor <= 6) return "MIDDLE";
     return "OUTER";
 }
 
-ActionResult fail(ActionStatus status, const std::string& reason) {
+ActionResult fail(ActionStatus status, const std::string& reason)
+{
     return {status, ActionMessage("error", reason)};
 }
 
@@ -194,7 +196,8 @@ bool AdoptPhaseHandler::fillFeedbackTrackFromCurrentBoard(GameState& state) {
     return !state.adaptTrack.empty();
 }
 
-bool AdoptPhaseHandler::ensureAdaptTrackInitialized(GameState& state) {
+bool AdoptPhaseHandler::ensureAdaptTrackInitialized(GameState& state)
+{
     if (!state.adaptTrack.empty()) {
         runtimeFor(state);
         return true;
