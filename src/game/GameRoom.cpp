@@ -11,8 +11,8 @@ ActionResult GameRoom::receiveAction(const Action& action)
 std::string GameRoom::getSnapshot() const
 {
     nlohmann::json combined;
-    combined["gameState"]  = getControllerSnapshot();
-    combined["controller"] = getGameStateSnapshot();
+    combined["gameState"]  = getGameStateSnapshot();
+    combined["controller"] = getControllerSnapshot();
     return combined.dump(2);
 }
 

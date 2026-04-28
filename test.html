@@ -357,6 +357,7 @@ const typeColors = {
 const typeNames = { 0: 'Wild', 1: 'Waste', 2: 'DevA', 3: 'DevB' };
 
 let currentCtrl = null;
+let lastPayload = [];
 
 function hexPoints(cx, cy, s) {
   const pts = [];
@@ -381,7 +382,7 @@ function sidePos(cx, cy, s, side) {
   return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
 }
 
-function renderBoard(boardData, peopleToken) {
+function renderBoard(boardData, peopleToken, payload = []) {
   const wrap = document.getElementById('boardWrap');
   wrap.innerHTML = '';
   boardData.forEach((tile) => {
@@ -524,21 +525,48 @@ function log(msg, type) {
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-
 async function fetchState() {
   try {
     const res = await fetch(API + '/state');
     const data = await res.json();
-    const gs = data.gameState || data;
-    const ctrl = data.controller || null;
-    renderBoard(gs.board || [], gs.peopleToken);
+
+    let gs = data?.gameState ?? {};
+    let ctrl = data?.controller ?? null;
+
+    if (typeof gs === 'string') {
+      gs = JSON.parse(gs);
+    }
+    if (typeof ctrl === 'string') {
+      ctrl = JSON.parse(ctrl);
+    }
+
+    if (Array.isArray(data?.message?.payload)) {
+      lastPayload = data.message.payload;
+    } else if (Array.isArray(data?.payload)) {
+      lastPayload = data.payload;
+    }
+
+    if (ctrl) {
+      ctrl = {
+        ...ctrl,
+        currentPlayerId: ctrl.currentPlayerId ?? ctrl.next_player_id
+      };
+    }
+
+    console.log('parsed gameState =', gs);
+    console.log('parsed controller =', ctrl);
+    console.log('payload =', lastPayload);
+
+    renderBoard(gs.board || [], gs.peopleToken, lastPayload);
     renderParams(gs.params || {});
     renderPool(gs.pool || {});
     renderPlayers(gs.players || [], ctrl ? ctrl.currentPlayerId : undefined);
     renderCtrl(ctrl);
-    renderDisruption(gs.activeDisruption);
+    renderDisruption(gs.activeDisruption || null);
+
     log('State refreshed', 'ok');
-  } catch(e) {
+  } catch (e) {
+    console.error(e);
     log('Fetch error: ' + e.message, 'err');
   }
 }
