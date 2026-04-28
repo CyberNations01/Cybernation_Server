@@ -2,10 +2,21 @@
 #include <sstream>
 
 namespace {
-void clearActiveDisruption(GameState& state) {
-    state.activeDisruption = std::nullopt;
-}
+    void clearActiveDisruption(GameState& state) {
+        state.activeDisruption = std::nullopt;
+    }
+
+    void applyResource(GameState& state, const std::string& r) {
+        if (r == "HR")        state.params.adjustParam(CyberParameter::HUMAN_RELATION, 1);
+        else if (r == "Tech") state.params.adjustParam(CyberParameter::TECHNOLOGY, 1);
+        else if (r == "Env")  state.params.adjustParam(CyberParameter::ENVIRONMENT, 1);
+        else if (r == "-Co")  state.params.adjustParam(CyberParameter::COHESION, -1);
+    }
+
 }  // namespace
+
+
+
 
 nlohmann::json 
 GameUtility::pathResultToJson(const int& tile, const int& side, 
@@ -62,18 +73,19 @@ ActionResult GameUtility::walkPath(GameState &state)
             - If Overlay Stack exist, collect both stack resources
             - Collect resources for both of the connected sides 
         */ 
-        resources = baseStack.getSides()[tokenLocation.second];
-        resJson.push_back(pathResultToJson(tokenLocation.first, tokenLocation.second, resources, "base"));
+        auto collectAndApply = [&](const Stack& stack, int side, const std::string& layer) {
+            const auto& resources = stack.getSides()[side];
+            resJson.push_back(pathResultToJson(tokenLocation.first, side, resources, layer));
+            for (const auto& r : resources)
+                applyResource(state, r);
+        };
 
-        resources = baseStack.getSides()[connectedSide];
-        resJson.push_back(pathResultToJson(tokenLocation.first, connectedSide, resources, "base"));
+        collectAndApply(baseStack, tokenLocation.second, "base");
+        collectAndApply(baseStack, connectedSide, "base");
 
         if (currentTile.hasOverlay()) {
-            resources = overlayStack.getSides()[tokenLocation.second];
-            resJson.push_back(pathResultToJson(tokenLocation.first, tokenLocation.second, resources, "overlay"));
-
-            resources = overlayStack.getSides()[connectedSide];
-            resJson.push_back(pathResultToJson(tokenLocation.first, connectedSide, resources, "overlay"));
+            collectAndApply(overlayStack, tokenLocation.second, "overlay");
+            collectAndApply(overlayStack, connectedSide, "overlay");
         }
 
         /*! 3. Update tokenLocation */ 

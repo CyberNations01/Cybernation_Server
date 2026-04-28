@@ -213,9 +213,15 @@ nlohmann::json GameState::toJson() const
     // Board
     j["board"] = nlohmann::json::array();
     for (const auto& t : board) {
+        const Stack& stack = t.hasOverlay() ? t.getOverlay() : t.getBase();
+        nlohmann::json paths = nlohmann::json::object();
+        for (const auto& [from, to] : stack.getPaths()) {
+            paths[std::to_string(from)] = to;
+        }
         j["board"].push_back({
             {"position", t.getPosition()},
-            {"type",     stackTypeToStr(t.getEffectiveType())}
+            {"type",     stackTypeToStr(t.getEffectiveType())},
+            {"paths",    paths}
         });
     }
 
@@ -245,8 +251,7 @@ nlohmann::json GameState::toJson() const
     for (int i = 0; i < NUM_PLAYERS; ++i) {
         j["players"].push_back({
             {"id",           players[i].getId()},
-            {"isFirstPlayer", players[i].isFirstPlayer()},
-            {"handSize",     static_cast<int>(players[i].getHand().size())}
+            {"isFirstPlayer", players[i].isFirstPlayer()}
         });
     }
 

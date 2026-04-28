@@ -16,11 +16,12 @@ public:
     RoundController(GameState& state);
     ActionResult processAction(const Action& action, GameState& state);
 
-    int         getCurrentPlayerId() const { return currentPlayerId; };
-    GamePhase   getCurrentPhase()    const { return currentPhase; };
-    int         getCurrentRound()    const { return currentRound; };
-    bool        isGameOver()         const { return gameOver; };
-    nlohmann::json toJson()          const;
+    int            getCurrentPlayerId() const { return currentPlayerId; };
+    GamePhase      getCurrentPhase()    const { return currentPhase; };
+    int            getCurrentRound()    const { return currentRound; };
+    bool           isGameOver()         const { return gameOver; };
+    nlohmann::json toJson()   const;
+    std::string    snapshot() const;
 
 private:
 

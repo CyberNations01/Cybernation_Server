@@ -29,23 +29,15 @@ private:
 public:
     GameRoom();
     ~GameRoom() = default;
-
-    // --- Main interface for server layer ---
     
     // Process a player action. Returns what happened.
     ActionResult receiveAction(const Action& action);
 
-    // Full game state as JSON string (broadcast to all clients after each action)
     std::string getSnapshot() const;
-
-    // Controller state for debugging
     std::string getControllerSnapshot() const;
+    std::string getGameStateSnapshot() const;
 
-    // --- Direct state access (for testing / setup) ---
-    GameState&       getState()       { return state; }
-    const GameState& getState() const { return state; }
-
-    RoundController&       getController()       { return controller; }
+    GameState& getState() { return state; }
     const RoundController& getController() const { return controller; }
 };
 

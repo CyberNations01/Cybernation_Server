@@ -1,4 +1,4 @@
-#include "http/httplib.h"
+#include "net/http/httplib.h"
 #include "nlohmann/json.hpp"
 #include "game/GameRoom.hpp"
 #include "phase/EnvisionPhaseHandler.hpp"
@@ -35,9 +35,20 @@ int main()
     TraversePhaseHandler traverseHandler;
     AdoptPhaseHandler    adoptHandler;
  
+    server.set_default_headers({
+        {"Access-Control-Allow-Origin", "*"},
+        {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
+        {"Access-Control-Allow-Headers", "Content-Type"}
+    });
+
+
     /* GET /state — full game state snapshot */
     server.Get("/state", [&](const httplib::Request&, httplib::Response& res) {
         res.set_content(room.getSnapshot(), "application/json");
+    });
+
+    server.Options(".*", [](const httplib::Request&, httplib::Response& res) {
+        res.status = 204;
     });
  
     /* POST /test/action — bypass RoundController, invoke PhaseHandler directly

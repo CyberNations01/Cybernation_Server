@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybernation - Test Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 20px;
+}
+h1 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 16px;
+}
+
+/* Layout */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Board */
+.board-wrap {
+  position: relative;
+  width: 600px;
+  height: 480px;
+  margin: 0 auto;
+}
+.hex-tile {
+  position: absolute;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+}
+.hex-tile:hover { filter: brightness(1.2); transform: scale(1.05); }
+.hex-tile polygon { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; }
+.hex-tile text {
+  font-family: inherit;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.hex-label { font-size: 14px; font-weight: 600; }
+.hex-sub { font-size: 11px; font-weight: 400; fill: rgba(255,255,255,0.75); }
+.hex-ring { font-size: 9px; font-weight: 400; fill: rgba(255,255,255,0.5); }
+
+/* People token */
+.ppl-marker {
+  position: absolute;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #333;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  color: #333;
+  z-index: 10;
+  pointer-events: none;
+  transition: left 0.4s ease, top 0.4s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* Panels */
+.panel {
+  background: #16213e;
+  border: 1px solid #1a3a5c;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7b8ca8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.stat-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  background: #0f1a30;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #e0e0e0;
+  min-width: 70px;
+}
+.stat-label {
+  font-size: 10px;
+  color: #7b8ca8;
+  display: block;
+  margin-bottom: 2px;
+}
+.stat-value {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* Controller info */
+.ctrl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.ctrl-item {
+  background: #0f1a30;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.ctrl-item .val {
+  font-weight: 600;
+  font-size: 15px;
+  color: #6ec6ff;
+}
+
+/* Players */
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.player-badge {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #1a3a5c;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 12px;
+  color: #6ec6ff;
+}
+.player-badge.first {
+  background: #c9a227;
+  color: #1a1a2e;
+}
+.player-badge.active {
+  box-shadow: 0 0 0 2px #6ec6ff;
+}
+
+/* Controls */
+.ctrl-panel {
+  background: #16213e;
+  border: 1px solid #1a3a5c;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.ctrl-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.ctrl-row:last-child { margin-bottom: 0; }
+.ctrl-row label {
+  font-size: 11px;
+  color: #7b8ca8;
+  display: block;
+  margin-bottom: 3px;
+}
+.ctrl-row select, .ctrl-row input[type="text"], .ctrl-row input[type="number"] {
+  background: #0f1a30;
+  border: 1px solid #1a3a5c;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+}
+.ctrl-row select:focus, .ctrl-row input:focus {
+  border-color: #6ec6ff;
+}
+.btn {
+  background: #1a3a5c;
+  border: 1px solid #2a5a8c;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:hover { background: #2a5a8c; }
+.btn-primary {
+  background: #1565c0;
+  border-color: #1976d2;
+}
+.btn-primary:hover { background: #1976d2; }
+.btn-refresh {
+  background: #0f5132;
+  border-color: #198754;
+}
+.btn-refresh:hover { background: #198754; }
+
+/* Quick actions */
+.quick-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.quick-btn {
+  background: #0f1a30;
+  border: 1px solid #1a3a5c;
+  border-radius: 6px;
+  color: #7b8ca8;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.quick-btn:hover {
+  background: #1a3a5c;
+  color: #e0e0e0;
+}
+
+/* Log */
+.log-box {
+  background: #0a0f1a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #7b8ca8;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 10px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.log-box .log-ok { color: #4caf50; }
+.log-box .log-err { color: #ef5350; }
+.log-box .log-req { color: #6ec6ff; }
+
+/* Disruption indicator */
+.disruption-bar {
+  background: #3e1a1a;
+  border: 1px solid #6b2c2c;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ef9a9a;
+  margin-bottom: 12px;
+  display: none;
+}
+.disruption-bar.active { display: block; }
+</style>
+
+<h1>Cybernation Test Dashboard</h1>
+
+<div id="disruptionBar" class="disruption-bar">
+  <strong>Active disruption:</strong> <span id="disruptName">—</span>
+  (<span id="disruptCat">—</span>) | Cancellable: <span id="disruptCancel">—</span>
+</div>
+
+<div class="main-grid">
+  <div>
+    <div class="board-wrap" id="boardWrap"></div>
+  </div>
+  <div>
+    <div class="panel" id="ctrlPanel">
+      <p class="panel-title">Round controller</p>
+      <div class="ctrl-grid" id="ctrlInfo"></div>
+    </div>
+    <div class="panel">
+      <p class="panel-title">Parameters</p>
+      <div class="stat-row" id="paramStats"></div>
+    </div>
+    <div class="panel">
+      <p class="panel-title">Feedback pool</p>
+      <div class="stat-row" id="poolStats"></div>
+    </div>
+    <div class="panel">
+      <p class="panel-title">Players</p>
+      <div id="playerList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ctrl-panel">
+  <p class="panel-title">Send action</p>
+  <div class="quick-actions">
+    <button class="quick-btn" onclick="quickAction('walk_path')">walk_path</button>
+    <button class="quick-btn" onclick="quickAction('draw_disruption')">draw_disruption</button>
+    <button class="quick-btn" onclick="quickAction('resolve_disruption')">resolve_disruption</button>
+    <button class="quick-btn" onclick="quickAction('resolve_feedback')">resolve_feedback</button>
+    <button class="quick-btn" onclick="quickAction('pass')">pass</button>
+    <button class="quick-btn" onclick="quickAction('advance')">advance</button>
+  </div>
+  <div class="ctrl-row">
+    <div>
+      <label>Phase</label>
+      <select id="phaseSelect">
+        <option value="ENVISION">ENVISION</option>
+        <option value="TRAVERSE" selected>TRAVERSE</option>
+        <option value="ADOPT">ADOPT</option>
+      </select>
+    </div>
+    <div>
+      <label>Player ID</label>
+      <input id="playerIdInput" type="number" min="0" max="4" value="0" style="width:60px;" />
+    </div>
+    <div style="flex:1;">
+      <label>Action type</label>
+      <input id="actionTypeInput" type="text" value="walk_path" style="width:100%;" />
+    </div>
+    <div style="flex:2;">
+      <label>Params (JSON)</label>
+      <input id="paramsInput" type="text" value="{}" style="width:100%;" />
+    </div>
+  </div>
+  <div class="ctrl-row">
+    <button class="btn btn-primary" id="sendBtn">Send action</button>
+    <button class="btn btn-refresh" id="refreshBtn">Refresh state</button>
+  </div>
+  <div class="log-box" id="logBox">Ready. Click "Refresh state" to load game state from server.\n</div>
+</div>
+
+<script>
+const API = 'http://localhost:8080';
+const HEX = 48;
+const PAD = 4;
+const W = HEX * 2 + PAD * 2;                      // flat-top: width = 2*size + padding
+const H = Math.round(HEX * 1.732) + PAD * 2;      // flat-top: height = sqrt(3)*size + padding
+
+const tilePositions = [
+  { id:  0, x: 300.0, y: 240.0, ring: 'inner' },
+  { id:  1, x: 300.0, y: 156.9, ring: 'middle' },
+  { id:  2, x: 372.0, y: 198.4, ring: 'middle' },
+  { id:  3, x: 372.0, y: 281.6, ring: 'middle' },
+  { id:  4, x: 300.0, y: 323.1, ring: 'middle' },
+  { id:  5, x: 228.0, y: 281.6, ring: 'middle' },
+  { id:  6, x: 228.0, y: 198.4, ring: 'middle' },
+  { id:  7, x: 156.0, y: 156.9, ring: 'outer' },
+  { id:  8, x: 444.0, y: 156.9, ring: 'outer' },
+  { id:  9, x: 156.0, y: 323.1, ring: 'outer' },
+  { id: 10, x: 444.0, y: 323.1, ring: 'outer' },
+];
+
+const typeColors = {
+  'Wild': '#2d8a4e', 'Waste': '#b87333', 'DevA': '#2563eb', 'DevB': '#1d4ed8',
+  0: '#2d8a4e', 1: '#b87333', 2: '#2563eb', 3: '#1d4ed8'
+};
+const typeNames = { 0: 'Wild', 1: 'Waste', 2: 'DevA', 3: 'DevB' };
+
+let currentCtrl = null;
+
+function hexPoints(cx, cy, s) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i); // flat-top: vertices at 0°,60°,120°,180°,240°,300°
+    pts.push(`${Math.round(cx + s * Math.cos(a))},${Math.round(cy - s * Math.sin(a))}`);
+  }
+  return pts.join(' ');
+}
+
+function sidePos(cx, cy, s, side) {
+  // Flat-top hex, side 0 = top, clockwise
+  // side 0 = top         → 90°
+  // side 1 = top-right   → 30°
+  // side 2 = bottom-right→ 330°
+  // side 3 = bottom      → 270°
+  // side 4 = bottom-left → 210°
+  // side 5 = top-left    → 150°
+  const angles = [90, 30, 330, 270, 210, 150];
+  const r = s * 0.866;
+  const a = angles[side] * Math.PI / 180;
+  return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
+}
+
+function renderBoard(boardData, peopleToken) {
+  const wrap = document.getElementById('boardWrap');
+  wrap.innerHTML = '';
+  boardData.forEach((tile) => {
+    const pos = tilePositions.find(p => p.id === tile.position);
+    if (!pos) return;
+    const typeName = typeof tile.type === 'string' ? tile.type : (typeNames[tile.type] || '?');
+    const fill = pos.ring === 'inner' ? '#c060a0' : (typeColors[tile.type] || typeColors[typeName] || '#555');
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // Build path lines
+    let pathArrows = '';
+    if (tile.paths) {
+      const drawn = new Set();
+      Object.entries(tile.paths).forEach(([fromStr, to]) => {
+        const from = parseInt(fromStr);
+        const key = Math.min(from, to) + ',' + Math.max(from, to);
+        if (drawn.has(key)) return;
+        drawn.add(key);
+        const p1 = sidePos(cx, cy, HEX, from);
+        const p2 = sidePos(cx, cy, HEX, to);
+        pathArrows +=
+          `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" ` +
+          `x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" ` +
+          `stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>`;
+        pathArrows +=
+          `<circle cx="${p1.x.toFixed(1)}" cy="${p1.y.toFixed(1)}" r="3" fill="rgba(255,255,255,0.5)"/>` +
+          `<circle cx="${p2.x.toFixed(1)}" cy="${p2.y.toFixed(1)}" r="3" fill="rgba(255,255,255,0.5)"/>`;
+      });
+    }
+
+    // Side number labels at edge midpoints, pushed slightly outward
+    let sideLabels = '';
+    for (let s = 0; s < 6; s++) {
+      const lp = sidePos(cx, cy, HEX * 1.08, s);
+      sideLabels += `<text x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}" ` +
+        `font-size="8" fill="rgba(255,255,255,0.35)" text-anchor="middle" dominant-baseline="central">${s}</text>`;
+    }
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.classList.add('hex-tile');
+    svg.style.left = (pos.x - W/2) + 'px';
+    svg.style.top = (pos.y - H/2) + 'px';
+    svg.innerHTML =
+      `<polygon points="${hexPoints(W/2, H/2, HEX)}" fill="${fill}"/>` +
+      pathArrows +
+      sideLabels +
+      `<text x="${cx}" y="${cy - 10}" class="hex-label">T${tile.position}</text>` +
+      `<text x="${cx}" y="${cy + 6}" class="hex-sub">${typeName}</text>` +
+      `<text x="${cx}" y="${cy + 20}" class="hex-ring">${pos.ring}</text>`;
+    svg.onclick = () => {
+      const pathStr = tile.paths ? Object.entries(tile.paths).map(([f,t]) => `${f}→${t}`).join(', ') : 'none';
+      log(`Tile T${tile.position}: ${typeName} (${pos.ring}) | paths: ${pathStr}`, 'info');
+    };
+    wrap.appendChild(svg);
+  });
+
+  if (peopleToken) {
+    const tileId = peopleToken[0] !== undefined ? peopleToken[0] : -1;
+    const side = peopleToken[1] !== undefined ? peopleToken[1] : -1;
+    const pos = tilePositions.find(p => p.id === tileId);
+    if (pos) {
+      const marker = document.createElement('div');
+      marker.className = 'ppl-marker';
+      marker.textContent = 'P';
+      marker.title = `People token: tile ${tileId}, side ${side}`;
+      marker.style.left = (pos.x - 12) + 'px';
+      marker.style.top = (pos.y - H/2 - 20) + 'px';
+      wrap.appendChild(marker);
+    }
+  }
+}
+
+function renderParams(params) {
+  const el = document.getElementById('paramStats');
+  const keys = [
+    ['cohesion', 'Co'],
+    ['cybernationLevel', 'Cy'],
+    ['humanRelation', 'HR'],
+    ['environment', 'Env'],
+    ['technology', 'Tech']
+  ];
+  el.innerHTML = keys.map(([k, short]) =>
+    `<div class="stat-item"><span class="stat-label">${short}</span><span class="stat-value">${params[k] ?? '?'}</span></div>`
+  ).join('');
+}
+
+function renderPool(pool) {
+  const el = document.getElementById('poolStats');
+  const keys = ['turnWild','turnWaste','loseCohesion','solveDisruption','develop','transform','totalRemaining'];
+  el.innerHTML = keys.map(k =>
+    `<div class="stat-item"><span class="stat-label">${k}</span><span class="stat-value">${pool[k] ?? '?'}</span></div>`
+  ).join('');
+}
+
+function renderPlayers(players, currentPlayerId) {
+  const el = document.getElementById('playerList');
+  el.innerHTML = players.map(p => {
+    const isActive = currentPlayerId !== undefined && p.id === currentPlayerId;
+    return `<div class="player-row">
+      <div class="player-badge${p.isFirstPlayer ? ' first' : ''}${isActive ? ' active' : ''}">P${p.id}</div>
+      <span>Hand: ${p.handSize}</span>
+      ${p.isFirstPlayer ? '<span style="color:#c9a227;font-size:11px;">★ first</span>' : ''}
+      ${isActive ? '<span style="color:#6ec6ff;font-size:11px;">● active</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderCtrl(ctrl) {
+  currentCtrl = ctrl;
+  const el = document.getElementById('ctrlInfo');
+  if (!ctrl) { el.textContent = 'No controller data'; return; }
+  el.innerHTML = `
+    <div class="ctrl-item"><span class="stat-label">Round</span><span class="val">${ctrl.round}</span></div>
+    <div class="ctrl-item"><span class="stat-label">Phase</span><span class="val">${ctrl.phase}</span></div>
+    <div class="ctrl-item"><span class="stat-label">Current player</span><span class="val">P${ctrl.currentPlayerId}</span></div>
+    <div class="ctrl-item"><span class="stat-label">Game over</span><span class="val">${ctrl.gameOver ? 'YES' : 'No'}</span></div>
+  `;
+}
+
+function renderDisruption(d) {
+  const bar = document.getElementById('disruptionBar');
+  if (!d) { bar.classList.remove('active'); return; }
+  bar.classList.add('active');
+  document.getElementById('disruptName').textContent = d.name || '?';
+  document.getElementById('disruptCat').textContent = d.category || '?';
+  document.getElementById('disruptCancel').textContent = d.cancellable ? 'Yes' : 'No';
+}
+
+function log(msg, type) {
+  const box = document.getElementById('logBox');
+  const ts = new Date().toLocaleTimeString();
+  const cls = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : type === 'req' ? 'log-req' : '';
+  box.innerHTML = `<span class="${cls}">[${ts}] ${escHtml(msg)}</span>\n` + box.innerHTML;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function fetchState() {
+  try {
+    const res = await fetch(API + '/state');
+    const data = await res.json();
+    const gs = data.gameState || data;
+    const ctrl = data.controller || null;
+    renderBoard(gs.board || [], gs.peopleToken);
+    renderParams(gs.params || {});
+    renderPool(gs.pool || {});
+    renderPlayers(gs.players || [], ctrl ? ctrl.currentPlayerId : undefined);
+    renderCtrl(ctrl);
+    renderDisruption(gs.activeDisruption);
+    log('State refreshed', 'ok');
+  } catch(e) {
+    log('Fetch error: ' + e.message, 'err');
+  }
+}
+
+async function sendAction() {
+  const phase = document.getElementById('phaseSelect').value;
+  const playerId = parseInt(document.getElementById('playerIdInput').value) || 0;
+  const type = document.getElementById('actionTypeInput').value.trim();
+  let params = {};
+  try { params = JSON.parse(document.getElementById('paramsInput').value); } catch(e) {}
+
+  const body = { phase, playerId, type, params };
+  log('→ POST /test/action ' + JSON.stringify(body), 'req');
+  try {
+    const res = await fetch(API + '/test/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    const status = data.status === 0 ? 'ok' : 'err';
+    log('← ' + JSON.stringify(data, null, 0), status);
+    await fetchState();
+  } catch(e) {
+    log('Error: ' + e.message, 'err');
+  }
+}
+
+function quickAction(type) {
+  document.getElementById('actionTypeInput').value = type;
+  if (type === 'pass' || type === 'advance') {
+    document.getElementById('paramsInput').value = '{}';
+  }
+}
+
+document.getElementById('sendBtn').onclick = sendAction;
+document.getElementById('refreshBtn').onclick = fetchState;
+
+document.getElementById('actionTypeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAction();
+});
+document.getElementById('paramsInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAction();
+});
+</script>
+</body>
+</html>

@@ -195,10 +195,16 @@ bool RoundController::advanceToNextActivePlayer()
 
 nlohmann::json RoundController::toJson() const 
 {
-    return {
-        {"round", currentRound},
-        {"phase", gamePhaseToStr(currentPhase)},
-        {"currentPlayerId", currentPlayerId},
-        {"gameOver", gameOver}
-    };
+    nlohmann::json j;
+
+    j["round"] = currentRound;
+    j["phase"] = gamePhaseToStr(currentPhase);
+    j["gameOver"] = gameOver;
+    j["next_player_id"] = currentPlayerId;
+    return j;
+}
+
+std::string RoundController::snapshot() const
+{
+    return toJson().dump(2);
 }

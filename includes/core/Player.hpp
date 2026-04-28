@@ -12,6 +12,7 @@ private:
     std::vector<TokenEffect> hand;
 
 public:
+    Player() = default;
     Player(int id){this->id = id;};
     ~Player() = default;
 
