@@ -238,6 +238,7 @@ nlohmann::json GameState::toJson() const
     
     // Token bag
     j["tokenBagCount"] = static_cast<int>(tokenBag.size());
+    j["peopleToken"] = {peopleToken.first, peopleToken.second};
 
     j["adapt"] = {
         {"trackSize", static_cast<int>(adaptTrack.size())},

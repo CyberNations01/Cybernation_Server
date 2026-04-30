@@ -25,6 +25,8 @@ class GameRoom {
 private:
     GameState       state;
     RoundController controller;
+    /** Stable for this server process + GameRoom instance; changes after server restart. */
+    std::string sessionId_;
 
 public:
     GameRoom();
@@ -39,6 +41,7 @@ public:
 
     GameState& getState() { return state; }
     const RoundController& getController() const { return controller; }
+    const std::string& getSessionId() const { return sessionId_; }
 };
 
 #endif

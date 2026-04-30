@@ -11,34 +11,51 @@ body {
   background: #1a1a2e;
   color: #e0e0e0;
   min-height: 100vh;
-  padding: 20px;
+  padding: 10px 14px 12px;
 }
 h1 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 500;
   color: #fff;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 /* Layout */
 .main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.info-strip {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 16px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1200px) {
+  .info-strip {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .info-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Board */
 .board-wrap {
   position: relative;
   width: 600px;
-  height: 480px;
+  height: 320px;
   margin: 0 auto;
 }
 .hex-tile {
   position: absolute;
   cursor: pointer;
   transition: filter 0.15s, transform 0.15s;
+  z-index: 2;
 }
 .hex-tile:hover { filter: brightness(1.2); transform: scale(1.05); }
 .hex-tile polygon { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; }
@@ -63,10 +80,21 @@ h1 {
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 600;
   color: #333;
-  z-index: 10;
+  z-index: 12;
   pointer-events: none;
   transition: left 0.4s ease, top 0.4s ease;
   box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* Last walk_path route overlay (board-local px coords) */
+#walkPathHighlightSvg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 600px;
+  height: 320px;
+  pointer-events: none;
+  z-index: 6;
 }
 
 /* Panels */
@@ -75,7 +103,6 @@ h1 {
   border: 1px solid #1a3a5c;
   border-radius: 10px;
   padding: 14px 16px;
-  margin-bottom: 12px;
 }
 .panel-title {
   font-size: 12px;
@@ -126,6 +153,11 @@ h1 {
   font-size: 15px;
   color: #6ec6ff;
 }
+.token-info {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9ecbff;
+}
 
 /* Players */
 .player-row {
@@ -156,7 +188,7 @@ h1 {
   background: #16213e;
   border: 1px solid #1a3a5c;
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 10px 14px;
 }
 .ctrl-row {
   display: flex;
@@ -253,7 +285,7 @@ h1 {
   padding: 8px 12px;
   font-size: 12px;
   color: #ef9a9a;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   display: none;
 }
 .disruption-bar.active { display: block; }
@@ -267,13 +299,12 @@ h1 {
 </div>
 
 <div class="main-grid">
-  <div>
-    <div class="board-wrap" id="boardWrap"></div>
-  </div>
-  <div>
+  <div class="board-wrap" id="boardWrap"></div>
+  <div class="info-strip">
     <div class="panel" id="ctrlPanel">
       <p class="panel-title">Round controller</p>
       <div class="ctrl-grid" id="ctrlInfo"></div>
+      <div class="token-info" id="tokenInfo">People token: --</div>
     </div>
     <div class="panel">
       <p class="panel-title">Parameters</p>
@@ -325,6 +356,7 @@ h1 {
   <div class="ctrl-row">
     <button class="btn btn-primary" id="sendBtn">Send action</button>
     <button class="btn btn-refresh" id="refreshBtn">Refresh state</button>
+    <button type="button" class="btn" id="clearRouteBtn" title="Clear highlighted walk_path only">Clear route</button>
   </div>
   <div class="log-box" id="logBox">Ready. Click "Refresh state" to load game state from server.\n</div>
 </div>
@@ -333,6 +365,7 @@ h1 {
 const API = 'http://localhost:8080';
 const HEX = 48;
 const PAD = 4;
+const BOARD_Y_OFFSET = 78;
 const W = HEX * 2 + PAD * 2;                      // flat-top: width = 2*size + padding
 const H = Math.round(HEX * 1.732) + PAD * 2;      // flat-top: height = sqrt(3)*size + padding
 
@@ -358,6 +391,18 @@ const typeNames = { 0: 'Wild', 1: 'Waste', 2: 'DevA', 3: 'DevB' };
 
 let currentCtrl = null;
 let lastPayload = [];
+/** @type {{ x: number, y: number }[] | null} Board-local pixels for last successful walk_path */
+let walkPathHighlight = null;
+/** Server GameRoom session; changes after server restart (see GET /state sessionId). */
+let lastServerSessionId = null;
+
+const BOARD_W = 600;
+const BOARD_H = 320;
+
+function clearWalkRouteOverlay() {
+  walkPathHighlight = null;
+  lastPayload = [];
+}
 
 function hexPoints(cx, cy, s) {
   const pts = [];
@@ -380,6 +425,99 @@ function sidePos(cx, cy, s, side) {
   const r = s * 0.866;
   const a = angles[side] * Math.PI / 180;
   return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
+}
+
+/** Edge midpoint in board-wrap coordinates (same as people marker). */
+function edgeGlobal(tileId, side) {
+  const pos = tilePositions.find(p => p.id === tileId);
+  if (!pos || side < 0 || side > 5) return null;
+  const cx = W / 2;
+  const cy = H / 2;
+  const edge = sidePos(cx, cy, HEX * 1.04, side);
+  return {
+    x: pos.x - W / 2 + edge.x,
+    y: pos.y - H / 2 - BOARD_Y_OFFSET + edge.y
+  };
+}
+
+/**
+ * Build polyline from walk_path payload: use base layer only (one enter/exit pair per hop).
+ */
+function buildWalkHighlightFromPayload(payload) {
+  if (!Array.isArray(payload) || payload.length === 0) return null;
+  const pts = [];
+  let prevKey = null;
+  for (const item of payload) {
+    if (item.layer && item.layer !== 'base') continue;
+    const t = item.tile;
+    const s = item.side;
+    if (t === undefined || s === undefined) continue;
+    const key = `${t},${s}`;
+    if (key === prevKey) continue;
+    prevKey = key;
+    const g = edgeGlobal(t, s);
+    if (!g) continue;
+    // Neighbor tiles may place the shared edge midpoint a few px apart due to board layout rounding.
+    // Snap near-adjacent points to one midpoint so joints render cleanly.
+    if (pts.length > 0) {
+      const prev = pts[pts.length - 1];
+      const dx = g.x - prev.x;
+      const dy = g.y - prev.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= 10) {
+        prev.x = (prev.x + g.x) / 2;
+        prev.y = (prev.y + g.y) / 2;
+        continue;
+      }
+    }
+    pts.push(g);
+  }
+  return pts.length >= 2 ? pts : null;
+}
+
+function renderWalkHighlight(wrap) {
+  const old = document.getElementById('walkPathHighlightSvg');
+  if (old) old.remove();
+  if (!walkPathHighlight || walkPathHighlight.length < 2) return;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'walkPathHighlightSvg';
+  svg.setAttribute('viewBox', `0 0 ${BOARD_W} ${BOARD_H}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  const pointsStr = walkPathHighlight.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+  const glow = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  glow.setAttribute('points', pointsStr);
+  glow.setAttribute('fill', 'none');
+  glow.setAttribute('stroke', 'rgba(0,0,0,0.35)');
+  glow.setAttribute('stroke-width', '8');
+  glow.setAttribute('stroke-linecap', 'round');
+  glow.setAttribute('stroke-linejoin', 'round');
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', pointsStr);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', '#ffd54f');
+  line.setAttribute('stroke-width', '4');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('stroke-linejoin', 'round');
+
+  svg.appendChild(glow);
+  svg.appendChild(line);
+
+  walkPathHighlight.forEach((p, i) => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', p.x.toFixed(1));
+    c.setAttribute('cy', p.y.toFixed(1));
+    c.setAttribute('r', i === 0 || i === walkPathHighlight.length - 1 ? '5' : '4');
+    c.setAttribute('fill', i === 0 ? '#fff59d' : (i === walkPathHighlight.length - 1 ? '#ffe082' : '#fffde7'));
+    c.setAttribute('stroke', '#8d6e63');
+    c.setAttribute('stroke-width', '1');
+    svg.appendChild(c);
+  });
+
+  wrap.appendChild(svg);
 }
 
 function renderBoard(boardData, peopleToken, payload = []) {
@@ -414,12 +552,12 @@ function renderBoard(boardData, peopleToken, payload = []) {
       });
     }
 
-    // Side number labels at edge midpoints, pushed slightly outward
+    // Side number labels at edge midpoints, pulled inward to avoid overlap with neighbor tiles
     let sideLabels = '';
     for (let s = 0; s < 6; s++) {
-      const lp = sidePos(cx, cy, HEX * 1.08, s);
+      const lp = sidePos(cx, cy, HEX * 0.82, s);
       sideLabels += `<text x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}" ` +
-        `font-size="8" fill="rgba(255,255,255,0.35)" text-anchor="middle" dominant-baseline="central">${s}</text>`;
+        `font-size="8" fill="rgba(255,255,255,0.6)" text-anchor="middle" dominant-baseline="central">${s}</text>`;
     }
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -428,7 +566,7 @@ function renderBoard(boardData, peopleToken, payload = []) {
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.classList.add('hex-tile');
     svg.style.left = (pos.x - W/2) + 'px';
-    svg.style.top = (pos.y - H/2) + 'px';
+    svg.style.top = (pos.y - H/2 - BOARD_Y_OFFSET) + 'px';
     svg.innerHTML =
       `<polygon points="${hexPoints(W/2, H/2, HEX)}" fill="${fill}"/>` +
       pathArrows +
@@ -452,11 +590,19 @@ function renderBoard(boardData, peopleToken, payload = []) {
       marker.className = 'ppl-marker';
       marker.textContent = 'P';
       marker.title = `People token: tile ${tileId}, side ${side}`;
-      marker.style.left = (pos.x - 12) + 'px';
-      marker.style.top = (pos.y - H/2 - 20) + 'px';
+      // Align with SVG layout: hex center in each svg is (W/2, H/2), tile origin is top-left.
+      // Place marker on the requested edge midpoint (same geometry as side number labels).
+      const cx = W / 2;
+      const cy = H / 2;
+      const edge = side >= 0 && side < 6 ? sidePos(cx, cy, HEX * 1.06, side) : { x: cx, y: cy };
+      const mw = 24;
+      marker.style.left = (pos.x - W / 2 + edge.x - mw / 2) + 'px';
+      marker.style.top = (pos.y - H / 2 - BOARD_Y_OFFSET + edge.y - mw / 2) + 'px';
       wrap.appendChild(marker);
     }
   }
+
+  renderWalkHighlight(wrap);
 }
 
 function renderParams(params) {
@@ -506,6 +652,16 @@ function renderCtrl(ctrl) {
   `;
 }
 
+function renderTokenInfo(peopleToken) {
+  const el = document.getElementById('tokenInfo');
+  if (!el) return;
+  if (!Array.isArray(peopleToken) || peopleToken.length < 2) {
+    el.textContent = 'People token: --';
+    return;
+  }
+  el.textContent = `People token: T${peopleToken[0]}, S${peopleToken[1]}`;
+}
+
 function renderDisruption(d) {
   const bar = document.getElementById('disruptionBar');
   if (!d) { bar.classList.remove('active'); return; }
@@ -540,10 +696,22 @@ async function fetchState() {
       ctrl = JSON.parse(ctrl);
     }
 
+    const sid = data.sessionId;
+    if (typeof sid === 'string' && sid.length > 0) {
+      if (lastServerSessionId !== null && sid !== lastServerSessionId) {
+        clearWalkRouteOverlay();
+      }
+      lastServerSessionId = sid;
+    }
+
+    // Only replace lastPayload / route highlight when this response actually carries a payload array.
+    // GET /state usually has no message — must not clear walkPathHighlight set by the last walk_path POST.
     if (Array.isArray(data?.message?.payload)) {
       lastPayload = data.message.payload;
+      walkPathHighlight = buildWalkHighlightFromPayload(lastPayload);
     } else if (Array.isArray(data?.payload)) {
       lastPayload = data.payload;
+      walkPathHighlight = buildWalkHighlightFromPayload(lastPayload);
     }
 
     if (ctrl) {
@@ -558,6 +726,7 @@ async function fetchState() {
     console.log('payload =', lastPayload);
 
     renderBoard(gs.board || [], gs.peopleToken, lastPayload);
+    renderTokenInfo(gs.peopleToken);
     renderParams(gs.params || {});
     renderPool(gs.pool || {});
     renderPlayers(gs.players || [], ctrl ? ctrl.currentPlayerId : undefined);
@@ -589,6 +758,20 @@ async function sendAction() {
     const data = await res.json();
     const status = data.status === 0 ? 'ok' : 'err';
     log('← ' + JSON.stringify(data, null, 0), status);
+
+    const msgType = data.message && data.message.type;
+    const payload = data.message && data.message.payload;
+    if (data.status === 0 && msgType === 'walkPath' && Array.isArray(payload)) {
+      lastPayload = payload;
+      walkPathHighlight = buildWalkHighlightFromPayload(payload);
+    } else {
+      walkPathHighlight = null;
+    }
+
+    if (typeof data.sessionId === 'string' && data.sessionId.length > 0) {
+      lastServerSessionId = data.sessionId;
+    }
+
     await fetchState();
   } catch(e) {
     log('Error: ' + e.message, 'err');
@@ -604,6 +787,10 @@ function quickAction(type) {
 
 document.getElementById('sendBtn').onclick = sendAction;
 document.getElementById('refreshBtn').onclick = fetchState;
+document.getElementById('clearRouteBtn').onclick = () => {
+  clearWalkRouteOverlay();
+  fetchState();
+};
 
 document.getElementById('actionTypeInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendAction();

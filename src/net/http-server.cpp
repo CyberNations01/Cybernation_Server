@@ -102,6 +102,7 @@ int main()
         json response = actionResultToJson(result);
         response["gameState"]  = room.getState().toJson();
         response["controller"] = room.getController().toJson();
+        response["sessionId"] = room.getSessionId();
         res.set_content(response.dump(2), "application/json");
     });
  
