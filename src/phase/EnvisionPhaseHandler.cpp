@@ -124,11 +124,18 @@ ActionResult EnvisionPhaseHandler::handlePrepare(const Action& action, GameState
  */
 ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameState& state)
 {
+    int totalCost = 2;
     auto modeIt = action.params.find("mode");
     if (modeIt == action.params.end())
         return ActionResult::invalid("Missing param: mode");
 
     const std::string& mode = modeIt->second;
+
+    // Cost check: Set Course costs 2 technologies
+    if (state.params.getParamAmount(CyberParameter::TECHNOLOGY) < totalCost){
+        return {ActionStatus::INSUFFICIENT_RESOURCE,
+                {"Envision", "Not enough technology to use Set Course (requires 2)"}};
+    }
 
     if (mode == "move_people") {
         auto tileIt = action.params.find("tile");
@@ -171,10 +178,12 @@ ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameSta
         }
 
         if (state.setPeopleToken({targetTile, targetSide})) {
+            state.params.adjustParam(CyberParameter::TECHNOLOGY, -totalCost);
             return ActionResult::success({
                 "Envision",
                 "People token moved to tile " + std::to_string(targetTile) +
-                ", side " + std::to_string(targetSide)
+                ", side " + std::to_string(targetSide) +
+                " (-2 techonology)"
             });
         }
 
@@ -233,6 +242,7 @@ ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameSta
         }
 
         tile->setRotation(newRotation);
+        state.params.adjustParam(CyberParameter::TECHNOLOGY, -totalCost);
 
         return ActionResult::success({
             "info",
@@ -255,15 +265,28 @@ ActionResult EnvisionPhaseHandler::handleConnect(const Action& action, GameState
     // We need 2 parameters from the front end: cost relationship type & gain relationship type
     if (action.params.find("cost") == action.params.end() ||
         action.params.find("gain") == action.params.end()) {
-        return {ActionStatus::INVALID_ACTION, {"Envision", "Required cost and gain parameters"}};
+        return {ActionStatus::INVALID_ACTION, {"error", "Required cost and gain parameters"}};
     }
 
     CyberParameter cost, gain;
     if (!(parseCyberParameter(action.params.at("cost"), cost)))
-        return {ActionStatus::INVALID_ACTION, {"Envision", "Invalid cost parameters"}};
+        return {ActionStatus::INVALID_ACTION, {"error", "Invalid cost parameters"}};
     
     if (!(parseCyberParameter(action.params.at("gain"), gain)))
-        return {ActionStatus::INVALID_ACTION, {"Envision", "Invalid cost parameters"}};
+        return {ActionStatus::INVALID_ACTION, {"error", "Invalid gain parameters"}};
+
+    auto isRelationship = [](CyberParameter p){
+        return p == CyberParameter::HUMAN_RELATION ||
+               p == CyberParameter::ENVIRONMENT ||
+               p == CyberParameter::TECHNOLOGY;
+    };
+
+    if (!isRelationship(cost)|| !isRelationship(gain)){
+        return{
+            ActionStatus::INVALID_ACTION,
+            {"error", "CONNECT only supports relationship parameters"}
+        };
+    }
  
     // check if it is enough to pay 2 relationships.
     if (state.params.getParamAmount(cost) < 2) {
@@ -271,6 +294,22 @@ ActionResult EnvisionPhaseHandler::handleConnect(const Action& action, GameState
             ActionStatus::INSUFFICIENT_RESOURCE,
             {"error", "Not enough cost for CONNECT (need 2)"}
         };
+    }
+
+    // reject no-op/same-resource exchange.
+    if (cost == gain){
+        return {
+            ActionStatus::INVALID_ACTION,
+            {"error", "Cost and gain parameters should be different"}
+        };
+    }
+
+    // Avoid paying cost when gain is already capped
+    if (state.params.getParamAmount(gain) >= state.params.getParamAmount(CyberParameter::COHESION)){
+        return{
+            ActionStatus::INVALID_ACTION,
+            {"error", "Gain parameter is already at cohesion cap"}
+        };       
     }
 
     state.params.adjustParam(cost, -2);
