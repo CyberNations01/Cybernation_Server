@@ -1,6 +1,7 @@
 #ifndef TYPES_HPP
 #define TYPES_HPP
 #include <string>
+#include <optional>
 
 enum class StackType {
     WILD,
@@ -208,6 +209,24 @@ inline CyberParameter disruptionEffectToCyberParameter(const DisruptionEffect& e
             return CyberParameter::ENVIRONMENT;
         default:
             return CyberParameter::CYBERNATION_LEVEL;
+    }
+}
+
+inline std::optional<CyberParameter> tryDisruptionEffectToCyberParameter(const DisruptionEffect& eff)
+{
+    switch (eff) {
+        case DisruptionEffect::CYBERNATION:
+            return CyberParameter::CYBERNATION_LEVEL;
+        case DisruptionEffect::COHESION:
+            return CyberParameter::COHESION;
+        case DisruptionEffect::HUMAN_RELATION:
+            return CyberParameter::HUMAN_RELATION;
+        case DisruptionEffect::TECHNOLOGY:
+            return CyberParameter::TECHNOLOGY;
+        case DisruptionEffect::ENVIRONMENT:
+            return CyberParameter::ENVIRONMENT;
+        default:
+            return std::nullopt;
     }
 }
 

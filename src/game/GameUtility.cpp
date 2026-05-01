@@ -257,30 +257,11 @@ static std::vector<int> parseIntList(const std::string& s)
 
 namespace {
 
-/** Cancel-line costs in disruption.json only use resource keys (Cy/Co/HR/Tech/Env). */
-std::optional<CyberParameter> resourceCostToParam(DisruptionEffect e)
-{
-    switch (e) {
-        case DisruptionEffect::COHESION:
-            return CyberParameter::COHESION;
-        case DisruptionEffect::HUMAN_RELATION:
-            return CyberParameter::HUMAN_RELATION;
-        case DisruptionEffect::CYBERNATION:
-            return CyberParameter::CYBERNATION_LEVEL;
-        case DisruptionEffect::TECHNOLOGY:
-            return CyberParameter::TECHNOLOGY;
-        case DisruptionEffect::ENVIRONMENT:
-            return CyberParameter::ENVIRONMENT;
-        default:
-            return std::nullopt;
-    }
-}
-
 void payResourceCostDelta(GameState& state, DisruptionEffect e, int delta)
 {
     if (e == DisruptionEffect::COHESION && delta < 0 && state.ignoreCohesionLossThisRound)
         return;
-    auto p = resourceCostToParam(e);
+    auto p = tryDisruptionEffectToCyberParameter(e);
     if (p.has_value())
         state.params.adjustParam(*p, delta);
 }
@@ -339,7 +320,7 @@ GameUtility::cancelOnTiles(GameState & state,
 
     std::pair<DisruptionEffect, int> costPair = card.getCosts()[0];
     int costOnCancel = (stackTarget.size() - effectiveStackTarget.size()) * costPair.second;
-    auto costParamOpt = resourceCostToParam(costPair.first);
+    auto costParamOpt = tryDisruptionEffectToCyberParameter(costPair.first);
     if (!costParamOpt.has_value())
         return ActionResult::invalid(
             "Cancel cost type on this card is not a resource (use Cy/Co/HR/Tech/Env in disruption.json cost)");
