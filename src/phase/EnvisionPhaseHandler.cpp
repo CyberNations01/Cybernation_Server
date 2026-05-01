@@ -347,10 +347,11 @@ ActionResult EnvisionPhaseHandler::handleSteer(const Action& action, GameState& 
         };
     }
 
-    std::vector<TokenEffect> bag = state.tokenManager.getBag();
+    // Append to the live bag (rebuildTokenBag fills tokenBag but must stay synced with
+    // tokenManager — never replace from an empty manager snapshot).
+    std::vector<TokenEffect> bag = state.tokenBag;
     bag.push_back(effect);
-    state.tokenManager.setBag(bag);
-    state.syncTokenBagFromManager();
+    state.setTokenBag(bag);
 
     return ActionResult::success({
         "Envision",

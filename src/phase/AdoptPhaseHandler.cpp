@@ -171,18 +171,17 @@ ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
         }
         return GameUtility::applyDisruptionEffect(state, action);
     }
-    if (action.type == "cancel_disruption") {
-        Action routed = action;
-        routed.params["cancel"] = "1";
-        return GameUtility::applyDisruptionEffect(state, routed);
-    }
 
     return fail(ActionStatus::INVALID_ACTION,
                 "Action '" + action.type + "' is not valid during Adopt phase");
 }
 
 bool AdoptPhaseHandler::fillFeedbackTrackFromCurrentBoard(GameState& state) {
-    state.rebuildTokenBag();
+    /* Only build bag from stacks when empty. Otherwise steer / extras in tokenBag would be wiped
+       when Adapt first draws the 11-slot track (e.g. testing resolve_feedback with extra Develop). */
+    if (state.tokenBag.empty()) {
+        state.rebuildTokenBag();
+    }
     if (state.tokenBag.empty()) {
         return false;
     }
@@ -409,15 +408,13 @@ ActionResult AdoptPhaseHandler::applyFeedbackEffect(TokenEffect effect, int tile
                 return ActionResult::success(ActionMessage("adapt_effect_applied", payload.dump()));
             }
         case TokenEffect::TRANSFORM_STACK:
-            // Minimal implementation:
-            // - If no development tile, no effect.
-            // - If developed, toggle DEV_A <-> DEV_B with a real template stack.
-            if (tile->hasOverlay()) {
-                Stack overlay = tile->getOverlay();
-                StackType t = overlay.getType();
-                if (t == StackType::DEV_A) {
+            // Toggle Works/Agora (DevA <-> DevB) using effective stack type — development may live on
+            // overlay only, or (e.g. after randomizeBoard) as base stack with no overlay.
+            {
+                const StackType eff = tile->getEffectiveType();
+                if (eff == StackType::DEV_A) {
                     GameUtility::changeTileStack(state, tilePos, StackType::DEV_B);
-                } else if (t == StackType::DEV_B) {
+                } else if (eff == StackType::DEV_B) {
                     GameUtility::changeTileStack(state, tilePos, StackType::DEV_A);
                 }
             }

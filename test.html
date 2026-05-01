@@ -27,19 +27,208 @@ h1 {
   gap: 4px;
   margin-bottom: 8px;
 }
+.board-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.adapt-sidebar {
+  background: #16213e;
+  border: 1px solid #1a3a5c;
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 280px;
+  max-width: 420px;
+  flex: 0 0 auto;
+}
+.adapt-sidebar .adapt-track-heading { margin-bottom: 8px; }
+/* No tokens yet: tight chrome — match footprint of track strip only */
+.adapt-sidebar.adapt-idle {
+  padding: 8px 10px;
+  min-width: 0;
+  max-width: none;
+  width: fit-content;
+  align-self: flex-start;
+}
+.adapt-sidebar.adapt-idle .adapt-track-heading {
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+.adapt-sidebar.adapt-idle .adapt-track-visual {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.adapt-sidebar.adapt-idle .adapt-slot {
+  min-height: 30px;
+  padding: 2px 1px;
+  font-size: 8px;
+}
+.adapt-sidebar.adapt-idle .adapt-slot .si { font-size: 7px; }
+.adapt-sidebar.adapt-idle .adapt-ptr-cell { height: 13px; line-height: 13px; }
+.adapt-sidebar.adapt-idle .adapt-ptr { font-size: 11px; }
+/* 六种反馈标记色（与规则表一致；TURN_WASTE=Works 蓝，LOSE_COHESION=Wastes 橙） */
+.adapt-legend {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 10px;
+  color: #8a9bb8;
+  line-height: 1.45;
+}
+.adapt-leg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+.adapt-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.adapt-leg-sep {
+  width: 100%;
+  font-size: 9px;
+  color: #5c6b84;
+  letter-spacing: 0.2px;
+  margin: 6px 0 4px;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(255,255,255,0.1);
+}
+.adapt-dot--develop {
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.35) !important;
+}
+.adapt-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.25);
+}
+.adapt-dot.sm {
+  width: 10px;
+  height: 10px;
+}
+.adapt-dot--empty {
+  background: transparent !important;
+  border: 2px dashed rgba(255,255,255,0.22);
+  box-shadow: none;
+}
+.adapt-dot-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+}
+.adapt-sidebar.adapt-idle .adapt-legend {
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.adapt-sidebar.adapt-idle .adapt-leg-grid { gap: 4px 8px; font-size: 9px; }
+/* 11-slot track + pointer (matches server FEEDBACK_TRACK_SIZE = 11) */
+.adapt-track-visual {
+  margin-bottom: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.adapt-ptr-row,
+.adapt-slots-row {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(26px, 1fr));
+  gap: 4px;
+  min-width: 340px;
+}
+.adapt-ptr-cell {
+  text-align: center;
+  height: 16px;
+  line-height: 16px;
+}
+.adapt-ptr {
+  color: #6ec6ff;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.adapt-ptr.on { opacity: 1; }
+.adapt-slot {
+  border: 1px solid #2a4560;
+  border-radius: 5px;
+  padding: 3px 2px;
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.2;
+  min-height: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0,0,0,0.18);
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+.adapt-slot .si { color: #6b7c99; font-size: 8px; }
+.adapt-slot.idle { opacity: 0.5; }
+.adapt-slot.idle .adapt-dot--empty { border-color: rgba(255,255,255,0.12); }
+.adapt-slot.current {
+  border-color: #6ec6ff;
+  box-shadow: 0 0 0 1px rgba(110, 198, 255, 0.35);
+  background: rgba(110, 198, 255, 0.08);
+}
 .info-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(150px, 1fr) minmax(280px, 2.4fr) minmax(130px, 1fr);
+  gap: 10px;
   align-items: start;
+}
+.info-mid-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.panel.panel-dense {
+  padding: 10px 11px;
+}
+.panel.panel-dense .panel-title {
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.35px;
+}
+.stat-row.stat-row-dense {
+  gap: 5px;
+}
+.stat-row.stat-row-dense .stat-item {
+  min-width: 0;
+  flex: 1 1 52px;
+  padding: 5px 7px;
+  font-size: 11px;
+}
+.stat-row.stat-row-dense .stat-label {
+  font-size: 9px;
+}
+.stat-row.stat-row-dense .stat-value {
+  font-size: 14px;
 }
 @media (max-width: 1200px) {
   .info-strip {
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    grid-template-columns: 1fr 1fr;
+  }
+  .info-mid-trio {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 @media (max-width: 680px) {
   .info-strip {
+    grid-template-columns: 1fr;
+  }
+  .info-mid-trio {
     grid-template-columns: 1fr;
   }
 }
@@ -299,20 +488,45 @@ h1 {
 </div>
 
 <div class="main-grid">
-  <div class="board-wrap" id="boardWrap"></div>
+  <div class="board-row">
+    <div class="board-wrap" id="boardWrap"></div>
+    <aside class="adapt-sidebar adapt-idle" id="adaptSidebar">
+      <p class="panel-title adapt-track-heading">Adapt track (11 slots)</p>
+      <div class="adapt-track-visual" id="adaptTrackVisual" aria-label="Adapt feedback track"></div>
+      <div class="adapt-legend" aria-label="Six feedback token colors">
+        <div class="adapt-leg-grid">
+          <span class="adapt-leg-item"><span class="adapt-dot sm" style="background:#2d8a4e"></span> Wilds</span>
+          <span class="adapt-leg-item"><span class="adapt-dot sm" style="background:#b87333"></span> Wastes</span>
+          <span class="adapt-leg-item"><span class="adapt-dot sm" style="background:#2563eb"></span> Works (DevA)</span>
+          <span class="adapt-leg-item"><span class="adapt-dot sm" style="background:#c060a0"></span> Agora (DevB)</span>
+        </div>
+        <div class="adapt-leg-sep">Not from stacks — role / standalone tokens</div>
+        <div class="adapt-leg-grid">
+          <span class="adapt-leg-item"><span class="adapt-dot sm adapt-dot--develop" style="background:#c9a227"></span> Develop</span>
+          <span class="adapt-leg-item"><span class="adapt-dot sm" style="background:#b91c1c"></span> Transform</span>
+        </div>
+      </div>
+    </aside>
+  </div>
   <div class="info-strip">
     <div class="panel" id="ctrlPanel">
       <p class="panel-title">Round controller</p>
       <div class="ctrl-grid" id="ctrlInfo"></div>
       <div class="token-info" id="tokenInfo">People token: --</div>
     </div>
-    <div class="panel">
-      <p class="panel-title">Parameters</p>
-      <div class="stat-row" id="paramStats"></div>
-    </div>
-    <div class="panel">
-      <p class="panel-title">Feedback pool</p>
-      <div class="stat-row" id="poolStats"></div>
+    <div class="info-mid-trio">
+      <div class="panel panel-dense">
+        <p class="panel-title">Parameters</p>
+        <div class="stat-row stat-row-dense" id="paramStats"></div>
+      </div>
+      <div class="panel panel-dense">
+        <p class="panel-title">Feedback pool</p>
+        <div class="stat-row stat-row-dense" id="poolStats"></div>
+      </div>
+      <div class="panel panel-dense">
+        <p class="panel-title">Bag</p>
+        <div class="stat-row stat-row-dense" id="bagStats"></div>
+      </div>
     </div>
     <div class="panel">
       <p class="panel-title">Players</p>
@@ -383,9 +597,10 @@ const tilePositions = [
   { id: 10, x: 444.0, y: 323.1, ring: 'outer' },
 ];
 
+/* Wild 绿 / Waste 橙 / DevA 蓝 / DevB 粉 — 仅按 stack type，不按 ring 覆盖 */
 const typeColors = {
-  'Wild': '#2d8a4e', 'Waste': '#b87333', 'DevA': '#2563eb', 'DevB': '#1d4ed8',
-  0: '#2d8a4e', 1: '#b87333', 2: '#2563eb', 3: '#1d4ed8'
+  'Wild': '#2d8a4e', 'Waste': '#b87333', 'DevA': '#2563eb', 'DevB': '#c060a0',
+  0: '#2d8a4e', 1: '#b87333', 2: '#2563eb', 3: '#c060a0'
 };
 const typeNames = { 0: 'Wild', 1: 'Waste', 2: 'DevA', 3: 'DevB' };
 
@@ -527,7 +742,7 @@ function renderBoard(boardData, peopleToken, payload = []) {
     const pos = tilePositions.find(p => p.id === tile.position);
     if (!pos) return;
     const typeName = typeof tile.type === 'string' ? tile.type : (typeNames[tile.type] || '?');
-    const fill = pos.ring === 'inner' ? '#c060a0' : (typeColors[tile.type] || typeColors[typeName] || '#555');
+    const fill = typeColors[tile.type] ?? typeColors[typeName] ?? '#555';
     const cx = W / 2;
     const cy = H / 2;
 
@@ -619,6 +834,32 @@ function renderParams(params) {
   ).join('');
 }
 
+/** Keys match server tokenBagBreakdown / tokenEffectToStr */
+const BAG_BREAKDOWN_KEYS = [
+  ['TURN_WILD', 'Wild'],
+  ['LOSE_COHESION', '−Co'],
+  ['TURN_WASTE', 'Works'],
+  ['SOLVE_DISRUPTION', 'Agora'],
+  ['DEVELOP_STACK', 'Develop'],
+  ['TRANSFORM_STACK', 'Transform'],
+  ['UNKNOWN', '?']
+];
+
+function renderBag(breakdown, totalCount) {
+  const el = document.getElementById('bagStats');
+  if (!el) return;
+  const b = breakdown && typeof breakdown === 'object' ? breakdown : {};
+  const rows = BAG_BREAKDOWN_KEYS.map(([key, short]) => {
+    const v = b[key];
+    const n = typeof v === 'number' ? v : 0;
+    return `<div class="stat-item"><span class="stat-label">${short}</span><span class="stat-value">${n}</span></div>`;
+  }).join('');
+  const sum = typeof totalCount === 'number' ? totalCount : '?';
+  el.innerHTML =
+    rows +
+    `<div class="stat-item"><span class="stat-label">Σ</span><span class="stat-value">${sum}</span></div>`;
+}
+
 function renderPool(pool) {
   const el = document.getElementById('poolStats');
   const keys = ['turnWild','turnWaste','loseCohesion','solveDisruption','develop','transform','totalRemaining'];
@@ -660,6 +901,74 @@ function renderTokenInfo(peopleToken) {
     return;
   }
   el.textContent = `People token: T${peopleToken[0]}, S${peopleToken[1]}`;
+}
+
+/** Valid target_tile rings for Adapt slot index (matches AdoptPhaseHandler). */
+function adaptRingHint(slotIndex) {
+  if (slotIndex === 0) return 'inner · T0';
+  if (slotIndex >= 1 && slotIndex <= 6) return 'middle · T1–6';
+  return 'outer · T7–10';
+}
+
+const ADAPT_SLOT_COUNT = 11;
+
+/**
+ * 前四种与棋盘 hex stack 色一致（typeColors）；Works=Agora 侧 DevA 蓝、Agora=DevB 粉。
+ * Develop / Transform 略暗沉黄、暗红；二者为非栈独立 feedback。
+ */
+function adaptTokenDotStyle(effectStr) {
+  const s = String(effectStr);
+  const map = {
+    TURN_WILD: typeColors.Wild,
+    LOSE_COHESION: typeColors.Waste,
+    TURN_WASTE: typeColors.DevA,
+    SOLVE_DISRUPTION: typeColors.DevB,
+    DEVELOP_STACK: '#c9a227',
+    TRANSFORM_STACK: '#b91c1c',
+    UNKNOWN: '#64748b'
+  };
+  const bg = map[s] || '#64748b';
+  return `background:${bg}`;
+}
+
+function renderAdaptPanel(adapt) {
+  const side = document.getElementById('adaptSidebar');
+  const vis = document.getElementById('adaptTrackVisual');
+  if (!side || !vis) return;
+
+  const a = adapt || {};
+  const complete = !!a.complete;
+  const rawTrack = Array.isArray(a.track) ? a.track : [];
+  const hasPayload = rawTrack.length > 0;
+  const cursorClamped = Math.max(0, Math.min(ADAPT_SLOT_COUNT - 1, Number(a.cursor ?? 0)));
+
+  side.classList.toggle('adapt-idle', !hasPayload);
+
+  const padded = [];
+  for (let i = 0; i < ADAPT_SLOT_COUNT; i++) {
+    padded.push(i < rawTrack.length ? rawTrack[i] : null);
+  }
+
+  let ptrRow = '<div class="adapt-ptr-row">';
+  let slotRow = '<div class="adapt-slots-row">';
+  for (let i = 0; i < ADAPT_SLOT_COUNT; i++) {
+    const tok = padded[i];
+    const isCur = !complete && i === cursorClamped;
+    const plainTitle = `${i}: ${tok == null ? 'empty' : String(tok)} · ${adaptRingHint(i)}`;
+    const developCls = tok != null && String(tok) === 'DEVELOP_STACK' ? ' adapt-dot--develop' : '';
+    const dotHtml = tok == null
+      ? '<span class="adapt-dot adapt-dot--empty"></span>'
+      : `<span class="adapt-dot${developCls}" style="${adaptTokenDotStyle(tok)}"></span>`;
+    ptrRow += `<div class="adapt-ptr-cell"><span class="adapt-ptr${isCur ? ' on' : ''}">▲</span></div>`;
+    slotRow +=
+      `<div class="adapt-slot${isCur ? ' current' : ''}${tok == null ? ' idle' : ''}" title="${escHtml(plainTitle)}">` +
+      `<span class="si">${i}</span>` +
+      `<div class="adapt-dot-wrap">${dotHtml}</div>` +
+      `</div>`;
+  }
+  ptrRow += '</div>';
+  slotRow += '</div>';
+  vis.innerHTML = ptrRow + slotRow;
 }
 
 function renderDisruption(d) {
@@ -727,8 +1036,10 @@ async function fetchState() {
 
     renderBoard(gs.board || [], gs.peopleToken, lastPayload);
     renderTokenInfo(gs.peopleToken);
+    renderAdaptPanel(gs.adapt);
     renderParams(gs.params || {});
     renderPool(gs.pool || {});
+    renderBag(gs.tokenBagBreakdown, gs.tokenBagCount);
     renderPlayers(gs.players || [], ctrl ? ctrl.currentPlayerId : undefined);
     renderCtrl(ctrl);
     renderDisruption(gs.activeDisruption || null);

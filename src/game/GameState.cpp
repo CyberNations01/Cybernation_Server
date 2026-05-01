@@ -1,4 +1,5 @@
 #include "game/GameState.hpp"
+#include "core/Types.hpp"
 #include <algorithm>
 #include <random>
 #include <map>
@@ -122,6 +123,9 @@ void GameState::rebuildTokenBag()
     std::random_device rd;
     std::mt19937 gen(rd());
     std::shuffle(tokenBag.begin(), tokenBag.end(), gen);
+
+    // Keep FeedbackTokenManager in sync — other code paths read tokenManager.getBag().
+    tokenManager.setBag(tokenBag);
 }
 
 void GameState::syncTokenBagFromManager()
@@ -236,14 +240,40 @@ nlohmann::json GameState::toJson() const
         {"totalRemaining", pool.getPoolSize()}
     };
     
-    // Token bag
+    // Token bag (counts only — additive JSON for clients; tokenBag vector unchanged)
     j["tokenBagCount"] = static_cast<int>(tokenBag.size());
+    {
+        std::map<TokenEffect, int> bagCounts;
+        for (const auto& te : tokenBag) {
+            bagCounts[te]++;
+        }
+        static const TokenEffect kBagBreakdownOrder[] = {
+            TokenEffect::TURN_WILD,
+            TokenEffect::LOSE_COHESION,
+            TokenEffect::TURN_WASTE,
+            TokenEffect::SOLVE_DISRUPTION,
+            TokenEffect::DEVELOP_STACK,
+            TokenEffect::TRANSFORM_STACK,
+            TokenEffect::UNKNOWN
+        };
+        nlohmann::json bagBreakdown = nlohmann::json::object();
+        for (TokenEffect te : kBagBreakdownOrder) {
+            auto it = bagCounts.find(te);
+            bagBreakdown[tokenEffectToStr(te)] = (it != bagCounts.end()) ? it->second : 0;
+        }
+        j["tokenBagBreakdown"] = bagBreakdown;
+    }
     j["peopleToken"] = {peopleToken.first, peopleToken.second};
 
+    nlohmann::json adaptTrackJson = nlohmann::json::array();
+    for (const auto& te : adaptTrack) {
+        adaptTrackJson.push_back(tokenEffectToStr(te));
+    }
     j["adapt"] = {
         {"trackSize", static_cast<int>(adaptTrack.size())},
         {"cursor", adaptCursor},
-        {"complete", (!adaptTrack.empty() && adaptCursor >= static_cast<int>(adaptTrack.size()))}
+        {"complete", (!adaptTrack.empty() && adaptCursor >= static_cast<int>(adaptTrack.size()))},
+        {"track", adaptTrackJson}
     };
 
 

@@ -32,6 +32,9 @@ class GameUtility {
                                                          const DisruptionCard& card,
                                                          const Action &action,
                                                          std::vector<int>& effectiveStackTarget);
+        /** Per-tile disruption effect: Turn* uses changeTileStack; numeric effects use resolveParamEffect. */
+        static void applyDisruptionStackOrParamOnTile(GameState& state, int tilePos,
+                                                      const std::pair<DisruptionEffect, int>& e);
 };
 
 #endif

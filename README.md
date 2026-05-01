@@ -207,13 +207,6 @@ CatK:              { "src": "HR", "dst": "Tech", "amount": "1" }
 }
 ```
 
-**4. Cancel disruption**
-```json
-{
-    "phase": "ADOPT",
-    "playerId": 0,
-    "type": "cancel_disruption"
-}
-```
+Use **`resolve_disruption`** with **`"cancel": "1"`** in `params` when you need the same behaviour as the old Adopt-only alias (see Traverse Section 3).
 
 <br></br>

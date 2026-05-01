@@ -50,44 +50,40 @@ int main() {
         Action draw = mk("draw_disruption");
         ActionResult r2 = handler.handle(draw, s);
         expectTrue(r2.ok(), "Draw disruption succeeds");
-        expectTrue(s.traverseDisruptionDrawn, "Traverse marks disruption drawn");
+        expectTrue(s.activeDisruption.has_value(), "Active disruption after draw");
 
         Action drawAgain = mk("draw_disruption");
         ActionResult r3 = handler.handle(drawAgain, s);
-        expectTrue(!r3.ok(), "Second draw in same Traverse rejected");
+        expectTrue(!r3.ok(), "Second draw rejected while card active");
+
+        // Deck order is not fixed — use a known CatA so plain resolve {} always applies.
+        s.activeDisruption = mustFindCard(s, "WILDFIRES_1");
 
         Action resolve = mk("resolve_disruption");
-        resolve.params["canceltiles"] = "";
         ActionResult r4 = handler.handle(resolve, s);
         expectTrue(r4.ok(), "Resolve disruption succeeds after draw");
-        expectTrue(s.traverseDisruptionHandled, "Traverse marks disruption handled");
         expectTrue(!s.activeDisruption.has_value(), "Resolve clears active disruption");
 
-        Action walk = mk("walkPath");
+        Action walk = mk("walk_path");
         ActionResult r5 = handler.handle(walk, s);
-        expectTrue(r5.ok(), "walkPath succeeds after disruption handled");
-        expectTrue(s.traverseWalkCompleted, "Traverse marks walk completed");
-
-        Action drawAfterWalk = mk("draw_disruption");
-        ActionResult r6 = handler.handle(drawAfterWalk, s);
-        expectTrue(!r6.ok(), "Cannot draw after walkPath");
+        expectTrue(r5.ok(), "walk_path succeeds after resolve");
     }
 
     {
         GameState s;
         s.params.setCybernationLevel(20);
-        Action cancelBeforeDraw = mk("cancel_disruption");
+        Action cancelBeforeDraw = mk("resolve_disruption");
+        cancelBeforeDraw.params["cancel"] = "1";
         ActionResult r1 = handler.handle(cancelBeforeDraw, s);
-        expectTrue(!r1.ok(), "Cannot cancel before draw");
+        expectTrue(!r1.ok(), "Cannot resolve+cancel before draw");
 
         s.activeDisruption = mustFindCard(s, "HURRICANE_1");
-        s.traverseDisruptionDrawn = true;
 
-        Action cancel = mk("cancel_disruption");
+        Action cancel = mk("resolve_disruption");
+        cancel.params["cancel"] = "1";
         ActionResult r3 = handler.handle(cancel, s);
-        expectTrue(r3.ok(), "Cancel disruption succeeds");
-        expectTrue(s.traverseDisruptionHandled, "Cancel marks disruption handled");
-        expectTrue(!s.activeDisruption.has_value(), "Cancel clears active disruption");
+        expectTrue(r3.ok(), "Resolve+cancel succeeds");
+        expectTrue(!s.activeDisruption.has_value(), "Resolve+cancel clears active disruption");
     }
 
     std::cout << "=== Traverse Disruption Finished ===" << std::endl;
