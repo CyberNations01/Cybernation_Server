@@ -1,6 +1,6 @@
 #include "game/GameRoom.hpp"
 #include "core/ActionResult.hpp"
-
+#include <mutex>
 enum ROOM_STATE {
     WAITING,
     PLAYING,
@@ -25,6 +25,8 @@ private:
     ROOM_STATE  roomState;
     GameRoom    gameRoom;
     int nextPlayerId = 0;
+
+    std::mutex room_mutex;
     std::map<int,int> conn_map;
     std::function<void(int conn_id, std::string msg)> sendFunc;
     std::string serialize(ActionResult result);

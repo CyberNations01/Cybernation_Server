@@ -2,6 +2,7 @@
 
 void Room::joinPlayer(int conn_id)
 {
+    std::lock_guard<std::mutex>lock(room_mutex);
     if (conn_map.find(conn_id) != conn_map.end())
         send(conn_id,
             serialize(ActionResult::invalid({"Room", "Error: Player has joined"})));
@@ -13,6 +14,7 @@ void Room::joinPlayer(int conn_id)
 
 void Room::onAction(int conn_id, Action action)
 {
+    std::lock_guard<std::mutex>lock(room_mutex);
     if (roomState != ROOM_STATE::PLAYING)
         send(conn_id, serialize(ActionResult::invalid({"Room", "Game not started"}))); 
 
@@ -32,6 +34,7 @@ void Room::onAction(int conn_id, Action action)
 // (auto-pass, switch first player, and also update next player etc.)
 void Room::removePlayer(int conn_id)
 {
+    std::lock_guard<std::mutex>lock(room_mutex);
     if (conn_map.find(conn_id) == conn_map.end())
         std::cout << "Room: " << "Invalid connection ID" << std::endl;
     
@@ -40,12 +43,14 @@ void Room::removePlayer(int conn_id)
 
 void Room::broadcast(const std::string &msg)
 {
+    std::lock_guard<std::mutex>lock(room_mutex);
     for (const auto& e: conn_map)
         sendFunc(e.first, msg);
 }
 
 void Room::send(int conn_id, const std::string &msg)
 {
+    std::lock_guard<std::mutex>lock(room_mutex);
     sendFunc(conn_id, msg);
 }
 

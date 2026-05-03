@@ -3,39 +3,42 @@
 std::string
 RoomManager::createRoom()
 {
+    std::lock_guard<std::mutex>lock(room_map_mutex);
     std::string code;
     do {
         code = generateCode(code_size);
-    } while (rooms.find(code) != rooms.end());
+    } while (room_map.find(code) != room_map.end());
 
-    rooms.insert({code, Room(sendFunc)});
+    room_map[code] = std::make_unique<Room>(sendFunc);
     return code;
-    
 }
 void RoomManager::joinRoom(std::string code, int conn_id)
 {
-    if (rooms.find(code) == rooms.end())
+    std::lock_guard<std::mutex>lock(room_map_mutex);
+    if (room_map.find(code) == room_map.end())
         return sendFunc(conn_id, "Game room does not exist");
 
-    rooms.at(code).joinPlayer(conn_id);
+    room_map.at(code)->joinPlayer(conn_id);
 }
 
 void RoomManager::leaveRoom(std::string code, int conn_id)
 {
-    if (rooms.find(code) == rooms.end())
+    std::lock_guard<std::mutex>lock(room_map_mutex);
+    if (room_map.find(code) == room_map.end())
         return sendFunc(conn_id, "Failed to leave game room");
 
-    rooms.at(code).removePlayer(conn_id);
+    room_map.at(code)->removePlayer(conn_id);
     // TODO: if room is FINISHED or empty, erase from rooms map
+    return;
 }
 
-const Room *RoomManager::getRoom(std::string code) const
+Room *RoomManager::getRoom(std::string code)
 {
-    auto it = rooms.find(code);
-    if (it == rooms.end())
+    std::lock_guard<std::mutex>lock(room_map_mutex);
+    auto it = room_map.find(code);
+    if (it == room_map.end())
         return nullptr;
-    return &it->second;
-
+    return it->second.get();
 }
 std::string RoomManager::generateCode(int length)
 {

@@ -10,10 +10,11 @@ public:
     std::string createRoom();
     void joinRoom(std::string room_id, int conn_id);
     void leaveRoom(std::string room_id, int conn_id);
-    const Room* getRoom(std::string room_id) const;
+    Room* getRoom(std::string room_id);
 
 private:
     std::string generateCode(int length);
-    std::map<std::string, Room> rooms;
+    std::mutex room_map_mutex;
+    std::map<std::string, std::unique_ptr<Room>> room_map;
     std::function<void(int, std::string)> sendFunc;
 };

@@ -25,6 +25,7 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
           $(SRCDIR)/game/GameUtility.cpp \
 		  $(SRCDIR)/net/Room.cpp \
+		  $(SRCDIR)/net/RoomManager.cpp
 
 #           $(SRCDIR)/test/EnvisionPhaseTest.cpp
 

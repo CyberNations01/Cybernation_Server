@@ -7,6 +7,7 @@
 #include "core/Action.hpp"
 #include "core/ActionResult.hpp"
 #include "core/Types.hpp"
+#include "net/RoomManager.hpp"
  
 using json = nlohmann::json;
  
@@ -29,12 +30,13 @@ static json actionResultToJson(const ActionResult& result)
 int main()
 {
     httplib::Server server;
+
     GameRoom room;
- 
     EnvisionPhaseHandler envisionHandler;
     TraversePhaseHandler traverseHandler;
     AdoptPhaseHandler    adoptHandler;
- 
+
+
     server.set_default_headers({
         {"Access-Control-Allow-Origin", "*"},
         {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
@@ -104,6 +106,76 @@ int main()
         response["controller"] = room.getController().toJson();
         response["sessionId"] = room.getSessionId();
         res.set_content(response.dump(2), "application/json");
+    });
+
+    /* WebSocket Resources */
+    std::atomic<int> next_conn_Id{0};
+    std::mutex conn_mutex;
+    std::map<int, httplib::ws::WebSocket*> ws_conn_map;
+
+
+    auto sendFunc = [&conn_mutex, &ws_conn_map](int conn_Id, std::string msg) {
+        std::lock_guard<std::mutex> lock(conn_mutex);
+        auto It = ws_conn_map.find(conn_Id);
+        if (It != ws_conn_map.end())
+            It->second->send(msg);
+    };
+
+    RoomManager room_manager(sendFunc);
+
+    server.WebSocket("/ws", [&](const httplib::Request& req,  httplib::ws::WebSocket& ws){
+        int connId = next_conn_Id++;
+        {
+            std::lock_guard<std::mutex> lock(conn_mutex);
+            ws_conn_map[connId] = &ws;
+        }
+        
+        std::string msg;
+        while (ws.read(msg)) {
+            json data;
+            json res;
+            std::string type; 
+            try {
+                data = json::parse(msg);
+            } catch (const json::exception& e) {
+                ws.send(json({{"type", "error"}, {"message", "Invalid JSON"}}).dump(2));
+                continue;
+            }
+
+            type = data["type"];
+            if (type == "create_room") {
+                    std::string code = room_manager.createRoom();
+                    res["type"] = "create_room";
+                    res["roomId"] = code;
+                    ws.send(res.dump(2));
+            } 
+            
+            else if (type == "join_room")
+                room_manager.joinRoom(data["roomId"], connId);
+            
+            else if (type == "leave_room")
+                room_manager.leaveRoom(data["roomId"], connId);
+            
+            else {
+                Action action;
+                action.type = type;
+                if (data.contains("params")) {
+                    for (auto& [key, val] : data["params"].items())
+                        action.params[key] = val.get<std::string>();
+                }
+
+                auto room = room_manager.getRoom(data["roomId"]);
+                if (room)
+                    room->onAction(connId, action);
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(conn_mutex);
+            ws_conn_map.erase(connId);
+            // TODO: Need a Map which connId -> roomId
+            // So that when lose connection, room could be notified to remove player 
+        }
     });
  
     std::cout << "Cybernation server listening on 0.0.0.0:8080\n";

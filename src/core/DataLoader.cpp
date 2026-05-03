@@ -202,7 +202,6 @@ Tile DataLoader::parseJson<Tile>(const nlohmann::json& data)
     Tile tile;
     std::vector<std::pair<int,int>> neighbours(Tile::TILE_SIDES, {-1,-1});
     tile.setPosition(data.value("position", 0));
-    tile.setRotation(data.value("rotation", 0));
 
     if (data.contains("neighbours") && data["neighbours"].is_array()) {
         int side = 0;
