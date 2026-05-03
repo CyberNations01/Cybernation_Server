@@ -9,7 +9,6 @@
 class Tile {
     private:
         int position;
-        int rotation;
         TokenEffect token;
 
         Stack base;
@@ -21,12 +20,9 @@ class Tile {
     
     public:
         static constexpr int TILE_SIDES = 6;
-
-        Tile(int position, int rotation, std::vector<int> neighbour);
         Tile() = default;
         ~Tile() = default;
 
-        const int&               getRotation()      const {return rotation;};
         const int&               getPosition()      const {return position;};
         const Stack&             getOverlay()       const {return overlay.value();};
         const Stack&             getBase()          const {return base;};
@@ -41,7 +37,6 @@ class Tile {
 
         void    setNeighbour(const std::vector<std::pair<int,int>>& nTile) {neighbours = nTile;};
         void    setToken(const TokenEffect &token) {this->token = token;};
-        void    setRotation(const int& rotation) {this->rotation = rotation;};
         void    setBase(const Stack& base) {this->base = base;};
         void    setOverlay(const Stack& s) {overlay = s;};
         void    setPosition(int pos) {position = pos;};

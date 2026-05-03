@@ -45,7 +45,6 @@ void testLoadTile()
 
     for (const auto& tile : board) {
         std::cout << "=== Tile Position " << tile.getPosition() << " ===" << std::endl;
-        std::cout << "Rotation: " << tile.getRotation() << std::endl;
 
         std::cout << "Neighbours:" << std::endl;
         const auto& neighbours = tile.getNeighbours();

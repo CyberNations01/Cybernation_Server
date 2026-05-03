@@ -192,67 +192,36 @@ ActionResult EnvisionPhaseHandler::handleSetCourse(const Action& action, GameSta
 
     if (mode == "rotate") {
         auto tileIt = action.params.find("tile");
-        if (tileIt == action.params.end()) {
+        if (tileIt == action.params.end()) 
             return ActionResult::invalid("Missing param: tile");
-        }
+
         int targetTile = -1;
-        if (!tryParseInt(tileIt->second, targetTile)) {
+        if (!tryParseInt(tileIt->second, targetTile))
             return ActionResult::invalid("tile must be an integer");
-        }
-        if (targetTile < 0 || targetTile >= static_cast<int>(state.board.size())) {
+        if (targetTile < 0 || targetTile >= static_cast<int>(state.board.size()))
             return {ActionStatus::INVALID_TARGET, {"error", "Target tile is out of range"}};
-        }
 
         Tile* tile = state.getTile(targetTile);
-        if (tile == nullptr) {
+        if (tile == nullptr)
             return {ActionStatus::INVALID_TARGET, {"error", "Target tile does not exist"}};
-        }
 
-        int steps = 1;
-        auto stepsIt = action.params.find("steps");
-        if (stepsIt == action.params.end()) {
-            stepsIt = action.params.find("degree");
-        }
-        if (stepsIt != action.params.end()) {
-            if (!tryParseInt(stepsIt->second, steps)) {
-                return ActionResult::invalid("steps/degree must be an integer");
-            }
-        }
+        auto stepIt = action.params.find("step");
+        if (stepIt == action.params.end())
+            return ActionResult::invalid("Missing param: step");
 
-        if (steps < 0) {
-            return ActionResult::invalid("steps/degree must be non-negative");
-        }
+        int step = -1;
+        if (!tryParseInt(stepIt->second, step))
+            return ActionResult::invalid("step must be an integer");
 
-        std::string direction = "clockwise";
-        auto dirIt = action.params.find("direction");
-        if (dirIt != action.params.end()) {
-            direction = dirIt->second;
-        }
-
-        int currentRotation = tile->getRotation();
-        int normalizedSteps = steps % Tile::TILE_SIDES;
-        int newRotation = currentRotation;
-
-        if (direction == "clockwise") {
-            newRotation = (currentRotation + normalizedSteps) % Tile::TILE_SIDES;
-        } else if (direction == "counterclockwise") {
-            newRotation = (currentRotation - normalizedSteps + Tile::TILE_SIDES) % Tile::TILE_SIDES;
-        } else {
-            return ActionResult::invalid("direction must be clockwise or counterclockwise");
-        }
-
-        tile->setRotation(newRotation);
-        state.params.adjustParam(CyberParameter::TECHNOLOGY, -totalCost);
+        Stack stk = tile->hasOverlay() ? tile->getOverlay() : tile->getBase();
+        stk.rotate(step);
 
         return ActionResult::success({
             "info",
             "Stack rotated on tile " + std::to_string(targetTile) +
-            ", direction " + direction +
-            ", steps " + std::to_string(normalizedSteps) +
-            ", new rotation = " + std::to_string(newRotation)
+            "for " + std::to_string(step) + "steps" 
         });
     }
-
     return ActionResult::invalid("Unsupported set_course mode");
 }
 

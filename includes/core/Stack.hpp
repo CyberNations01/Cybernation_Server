@@ -4,11 +4,12 @@
 #include "Types.hpp"
 #include <vector>
 #include <map>
-
+#include <algorithm>
 class Stack {
 private:
     int id;
     StackType type;
+    /* Resources at each sides */
     std::vector<std::vector<std::string>> sides;
     std::map<int, int> paths;
 
@@ -27,6 +28,7 @@ public:
     void setType(const StackType t)  { type = t; }
 
     int getConnectedSide(int side);
+    void rotate(int steps);
 };
 
 #endif
