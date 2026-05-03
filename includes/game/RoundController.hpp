@@ -39,6 +39,15 @@ private:
         int turn = 0;
         int maxTurn = 5;
     } envision_record;
+    struct traverse_record {
+        // 0: draw_disruption, 1: resolve_disruption, 2: walk_path
+        int stage = 0;
+    } traverse_record;
+    struct adopt_record {
+        bool pendingDisruptionResolution = false;
+        bool completeAfterPendingResolution = false;
+        int pendingPlayerId = -1;
+    } adopt_record;
     
     std::array<int, GameState::NUM_PLAYERS> turnOrder;
     std::set<int> passedPlayers;
@@ -49,6 +58,7 @@ private:
     
     PhaseHandler* getHandlerForPhase(GamePhase phase);
     bool handleEnvision(GameState& state);
+    void syncFirstPlayerFromState(const GameState& state);
 
     void buildTurnOrder(int firstPlayerId);
     void resetRound(const GamePhase& nextPhase);

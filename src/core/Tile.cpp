@@ -1,5 +1,14 @@
 #include "core/Tile.hpp"
 
+namespace {
+int normalizeSide(int side)
+{
+    side %= Tile::TILE_SIDES;
+    if (side < 0) side += Tile::TILE_SIDES;
+    return side;
+}
+}
+
 const StackType &Tile::getEffectiveType() const
 {
     if (hasOverlay()) return overlay->getType();
@@ -18,13 +27,24 @@ const int &Tile::getNeighbourSide(int side) const
 
 const std::vector<std::string> Tile::getSideResources(int side) const
 {
-    std::vector<std::string> all_resources = base.getSides()[side];
+    const int stackSide = boardSideToStackSide(side);
+    std::vector<std::string> all_resources = base.getSides()[stackSide];
     if (hasOverlay()) {
         all_resources.insert(all_resources.end(), 
-                             overlay->getSides()[side].begin(),
-                             overlay->getSides()[side].end());
+                             overlay->getSides()[stackSide].begin(),
+                             overlay->getSides()[stackSide].end());
     }
     return all_resources;
+}
+
+int Tile::boardSideToStackSide(int boardSide) const
+{
+    return normalizeSide(boardSide - rotation);
+}
+
+int Tile::stackSideToBoardSide(int stackSide) const
+{
+    return normalizeSide(stackSide + rotation);
 }
 
 std::optional<Stack> Tile::removeOverlay()

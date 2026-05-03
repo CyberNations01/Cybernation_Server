@@ -4,21 +4,21 @@ void Room::joinPlayer(int conn_id)
 {
     if (conn_map.find(conn_id) != conn_map.end())
         send(conn_id,
-            serialize(ActionResult::invalid({"Room", "Error: Player has joined"})));
+            serialize({ActionStatus::INVALID_ACTION, {"Room", "Error: Player has joined"}}));
     conn_map.insert({conn_id, nextPlayerId});
     return send(conn_id,
             serialize(ActionResult::success({"Room", 
-                                             "PlayerId: " + nextPlayerId++})));
+                                             "PlayerId: " + std::to_string(nextPlayerId++)})));
 }
 
 void Room::onAction(int conn_id, Action action)
 {
     if (roomState != ROOM_STATE::PLAYING)
-        send(conn_id, serialize(ActionResult::invalid({"Room", "Game not started"}))); 
+        send(conn_id, serialize({ActionStatus::INVALID_ACTION, {"Room", "Game not started"}})); 
 
     auto it = conn_map.find(conn_id);
     if (it == conn_map.end())
-        return send(conn_id, serialize(ActionResult::invalid({"Room", "Unknown connection"})));
+        return send(conn_id, serialize({ActionStatus::INVALID_ACTION, {"Room", "Unknown connection"}}));
     
     auto result = gameRoom.receiveAction(action);
     if (result.ok())

@@ -237,10 +237,10 @@ int main() {
         expectTrue(run(adopt, state, a, "named_apply").ok(), "named apply");
     }
 
-    // --- 4) draw, then resolve with cancel flag / plain resolve on a known card
+    // --- 4) ADOPT should reject standalone draw_disruption in controlled flow
     forceTrack(state, {TokenEffect::TURN_WILD});
-    expectTrue(run(adopt, state, makeAdoptAction("draw_disruption"), "draw").ok(), "draw from deck");
-    expectTrue(state.activeDisruption.has_value(), "active after draw");
+    expectTrue(!run(adopt, state, makeAdoptAction("draw_disruption"), "draw").ok(),
+               "draw_disruption is not valid in Adopt");
 
     forceTrack(state, {TokenEffect::TURN_WILD});
     state.params.setCybernationLevel(10);

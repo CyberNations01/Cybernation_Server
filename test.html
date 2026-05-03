@@ -11,37 +11,44 @@ body {
   background: #1a1a2e;
   color: #e0e0e0;
   min-height: 100vh;
-  padding: 10px 14px 12px;
+  padding: 6px 12px 10px;
 }
 h1 {
   font-size: 18px;
   font-weight: 500;
   color: #fff;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 /* Layout */
 .main-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: 8px 12px;
+  align-items: start;
+  margin-bottom: 4px;
 }
 .board-row {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(600px, 1fr) minmax(145px, 175px) minmax(320px, 360px);
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 0;
+  margin-left: 0;
+  width: 100%;
+  min-width: 0;
 }
 .adapt-sidebar {
   background: #16213e;
   border: 1px solid #1a3a5c;
   border-radius: 10px;
-  padding: 12px 14px;
-  min-width: 280px;
-  max-width: 420px;
+  padding: 10px 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   flex: 0 0 auto;
 }
 .adapt-sidebar .adapt-track-heading { margin-bottom: 8px; }
@@ -135,6 +142,7 @@ h1 {
   margin-bottom: 10px;
   overflow-x: auto;
   padding-bottom: 4px;
+  max-width: 100%;
 }
 .adapt-ptr-row,
 .adapt-slots-row {
@@ -181,16 +189,49 @@ h1 {
   background: rgba(110, 198, 255, 0.08);
 }
 .info-strip {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.top-info-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(280px, 2.4fr) minmax(130px, 1fr);
-  gap: 10px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  align-items: stretch;
 }
 .info-mid-trio {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
+}
+.info-strip .panel.panel-dense,
+.info-strip .panel#ctrlPanel {
+  margin: 0;
+}
+.info-strip .panel#ctrlPanel .ctrl-grid {
+  grid-template-columns: repeat(4, minmax(56px, 1fr));
+}
+.info-strip .panel#ctrlPanel .token-info {
+  margin-top: 4px;
+}
+.board-row #ctrlPanel.vertical-ctrl {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.board-row #ctrlPanel.vertical-ctrl .ctrl-grid {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+.board-row #ctrlPanel.vertical-ctrl .token-info {
+  margin-top: 6px;
+}
+.info-mid-trio .panel-bag {
+  grid-column: 1 / -1;
 }
 .panel.panel-dense {
   padding: 10px 11px;
@@ -216,20 +257,37 @@ h1 {
   font-size: 14px;
 }
 @media (max-width: 1200px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+  .board-row {
+    grid-column: 1;
+    grid-row: 2;
+    margin-left: 0;
+    margin-top: 0;
+    grid-template-columns: 1fr;
+  }
   .info-strip {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .top-info-row {
     grid-template-columns: 1fr 1fr;
   }
   .info-mid-trio {
-    grid-column: 1 / -1;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 @media (max-width: 680px) {
-  .info-strip {
+  .top-info-row {
     grid-template-columns: 1fr;
   }
   .info-mid-trio {
     grid-template-columns: 1fr;
+  }
+  .info-mid-trio .panel-bag {
+    grid-column: auto;
   }
 }
 
@@ -238,7 +296,7 @@ h1 {
   position: relative;
   width: 600px;
   height: 320px;
-  margin: 0 auto;
+  margin: 34px 0 0 0;
 }
 .hex-tile {
   position: absolute;
@@ -343,9 +401,16 @@ h1 {
   color: #6ec6ff;
 }
 .token-info {
-  margin-top: 8px;
+  margin-top: 6px;
+  background: #0f1a30;
+  border-radius: 6px;
+  padding: 8px 10px;
   font-size: 12px;
-  color: #9ecbff;
+}
+.token-info .val {
+  font-weight: 600;
+  font-size: 15px;
+  color: #6ec6ff;
 }
 
 /* Players */
@@ -425,6 +490,16 @@ h1 {
   border-color: #198754;
 }
 .btn-refresh:hover { background: #198754; }
+.btn-mode-direct {
+  background: #495057;
+  border-color: #6c757d;
+}
+.btn-mode-direct:hover { background: #5c636a; }
+.btn-mode-controlled {
+  background: #0d6efd;
+  border-color: #3d8bfd;
+}
+.btn-mode-controlled:hover { background: #0b5ed7; }
 
 /* Quick actions */
 .quick-actions {
@@ -474,10 +549,13 @@ h1 {
   padding: 8px 12px;
   font-size: 12px;
   color: #ef9a9a;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: none;
 }
 .disruption-bar.active { display: block; }
+.adapt-players {
+  margin-top: 8px;
+}
 </style>
 
 <h1>Cybernation Test Dashboard</h1>
@@ -490,6 +568,11 @@ h1 {
 <div class="main-grid">
   <div class="board-row">
     <div class="board-wrap" id="boardWrap"></div>
+    <div class="panel vertical-ctrl" id="ctrlPanel">
+      <p class="panel-title">Round controller</p>
+      <div class="ctrl-grid" id="ctrlInfo"></div>
+      <div class="token-info" id="tokenInfo">People token: --</div>
+    </div>
     <aside class="adapt-sidebar adapt-idle" id="adaptSidebar">
       <p class="panel-title adapt-track-heading">Adapt track (11 slots)</p>
       <div class="adapt-track-visual" id="adaptTrackVisual" aria-label="Adapt feedback track"></div>
@@ -506,15 +589,14 @@ h1 {
           <span class="adapt-leg-item"><span class="adapt-dot sm" style="background:#b91c1c"></span> Transform</span>
         </div>
       </div>
+      <div class="panel adapt-players">
+        <p class="panel-title">Players</p>
+        <div id="playerList"></div>
+      </div>
     </aside>
   </div>
   <div class="info-strip">
-    <div class="panel" id="ctrlPanel">
-      <p class="panel-title">Round controller</p>
-      <div class="ctrl-grid" id="ctrlInfo"></div>
-      <div class="token-info" id="tokenInfo">People token: --</div>
-    </div>
-    <div class="info-mid-trio">
+    <div class="top-info-row">
       <div class="panel panel-dense">
         <p class="panel-title">Parameters</p>
         <div class="stat-row stat-row-dense" id="paramStats"></div>
@@ -523,31 +605,37 @@ h1 {
         <p class="panel-title">Feedback pool</p>
         <div class="stat-row stat-row-dense" id="poolStats"></div>
       </div>
-      <div class="panel panel-dense">
+    </div>
+    <div class="info-mid-trio">
+      <div class="panel panel-dense panel-bag">
         <p class="panel-title">Bag</p>
         <div class="stat-row stat-row-dense" id="bagStats"></div>
       </div>
-    </div>
-    <div class="panel">
-      <p class="panel-title">Players</p>
-      <div id="playerList"></div>
     </div>
   </div>
 </div>
 
 <div class="ctrl-panel">
   <p class="panel-title">Send action</p>
-  <div class="quick-actions">
-    <button class="quick-btn" onclick="quickAction('walk_path')">walk_path</button>
-    <button class="quick-btn" onclick="quickAction('draw_disruption')">draw_disruption</button>
-    <button class="quick-btn" onclick="quickAction('resolve_disruption')">resolve_disruption</button>
-    <button class="quick-btn" onclick="quickAction('resolve_feedback')">resolve_feedback</button>
-    <button class="quick-btn" onclick="quickAction('pass')">pass</button>
-    <button class="quick-btn" onclick="quickAction('advance')">advance</button>
+  <div class="quick-actions" id="quickActionsBar"></div>
+  <div class="ctrl-row">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="margin:0;">Current request mode</label>
+      <button class="btn btn-mode-direct" id="modeToggleBtn" type="button">Direct handler mode (/test/action)</button>
+      <span style="font-size:12px;color:#8aa0c2;">Round controlled mode uses <code>/action</code> (via GameRoom + RoundController)</span>
+    </div>
+  </div>
+  <div class="ctrl-row">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+      <label style="margin:0;"><input id="autoSuggestToggle" type="checkbox" checked /> Auto-fill suggested player/action (controlled)</label>
+      <button class="btn" id="applySuggestBtn" type="button">Apply suggestion now</button>
+      <span id="suggestionHint" style="font-size:12px;color:#8aa0c2;">Suggestion: --</span>
+      <span id="validationHint" style="font-size:12px;color:#ef9a9a;"></span>
+    </div>
   </div>
   <div class="ctrl-row">
     <div>
-      <label>Phase</label>
+      <label id="phaseLabel">Phase</label>
       <select id="phaseSelect">
         <option value="ENVISION">ENVISION</option>
         <option value="TRAVERSE" selected>TRAVERSE</option>
@@ -565,6 +653,12 @@ h1 {
     <div style="flex:2;">
       <label>Params (JSON)</label>
       <input id="paramsInput" type="text" value="{}" style="width:100%;" />
+    </div>
+  </div>
+  <div class="ctrl-row">
+    <div style="flex:1;">
+      <label><input id="useRawRequestToggle" type="checkbox" /> Use full request JSON (override split fields)</label>
+      <input id="rawRequestInput" type="text" value='{"phase":"TRAVERSE","playerId":0,"type":"walk_path","params":{}}' style="width:100%;" />
     </div>
   </div>
   <div class="ctrl-row">
@@ -610,6 +704,140 @@ let lastPayload = [];
 let walkPathHighlight = null;
 /** Server GameRoom session; changes after server restart (see GET /state sessionId). */
 let lastServerSessionId = null;
+let roundControlMode = false;
+
+const QUICK_ACTIONS_BY_PHASE = {
+  ENVISION: ['shift_power', 'come_together', 'prepare', 'set_course', 'connect', 'steer', 'pass', 'advance'],
+  TRAVERSE: ['draw_disruption', 'resolve_disruption', 'walk_path'],
+  ADOPT: ['resolve_feedback', 'resolve_disruption']
+};
+
+function getCurrentSelectedPhase() {
+  return document.getElementById('phaseSelect').value;
+}
+
+function allowedQuickActions() {
+  if (roundControlMode && currentCtrl && Array.isArray(currentCtrl.allowed_actions) && currentCtrl.allowed_actions.length > 0) {
+    return currentCtrl.allowed_actions.slice();
+  }
+  const phase = getCurrentSelectedPhase();
+  let actions = QUICK_ACTIONS_BY_PHASE[phase] || [];
+  if (!roundControlMode) {
+    actions = actions.filter(a => a !== 'advance');
+  }
+  return actions;
+}
+
+function getSuggestionsFromCtrl() {
+  if (!currentCtrl) return null;
+  const suggestedPlayer = Number.isInteger(currentCtrl.currentPlayerId) ? currentCtrl.currentPlayerId : currentCtrl.next_player_id;
+  const allowed = Array.isArray(currentCtrl.allowed_actions) ? currentCtrl.allowed_actions : [];
+  const suggestedAction = currentCtrl.recommended_action || (allowed.length > 0 ? allowed[0] : '');
+  return { suggestedPlayer, suggestedAction, allowed };
+}
+
+function renderSuggestionHint() {
+  const hint = document.getElementById('suggestionHint');
+  if (!hint) return;
+  if (!roundControlMode) {
+    hint.textContent = 'Suggestion: only active in controlled mode';
+    return;
+  }
+  const sug = getSuggestionsFromCtrl();
+  if (!sug) {
+    hint.textContent = 'Suggestion: waiting for /state';
+    return;
+  }
+  const allowedStr = sug.allowed && sug.allowed.length ? sug.allowed.join(', ') : '-';
+  hint.textContent = `Suggestion: playerId=${sug.suggestedPlayer}, action=${sug.suggestedAction || '-'} (allowed: ${allowedStr})`;
+}
+
+function applySuggestionsToInputs(force = false) {
+  if (!roundControlMode) return;
+  if (!force && !document.getElementById('autoSuggestToggle').checked) return;
+  if (document.getElementById('useRawRequestToggle').checked) return;
+
+  const sug = getSuggestionsFromCtrl();
+  if (!sug) return;
+  if (Number.isInteger(sug.suggestedPlayer)) {
+    document.getElementById('playerIdInput').value = String(sug.suggestedPlayer);
+  }
+  if (sug.suggestedAction) {
+    document.getElementById('actionTypeInput').value = sug.suggestedAction;
+  }
+}
+
+function validateControlledInputs(body = null) {
+  const hint = document.getElementById('validationHint');
+  if (!hint) return;
+  hint.textContent = '';
+  if (!roundControlMode || !currentCtrl) return;
+
+  const allowed = Array.isArray(currentCtrl.allowed_actions) ? currentCtrl.allowed_actions : [];
+  const expectedPlayer = Number.isInteger(currentCtrl.currentPlayerId) ? currentCtrl.currentPlayerId : currentCtrl.next_player_id;
+  const checkBody = body || {
+    playerId: parseInt(document.getElementById('playerIdInput').value) || 0,
+    type: document.getElementById('actionTypeInput').value.trim()
+  };
+
+  const warnings = [];
+  if (Number.isInteger(expectedPlayer) && checkBody.playerId !== expectedPlayer) {
+    warnings.push(`playerId=${checkBody.playerId} (expected ${expectedPlayer})`);
+  }
+  if (allowed.length > 0 && !allowed.includes(checkBody.type)) {
+    warnings.push(`action=${checkBody.type} (allowed: ${allowed.join(', ')})`);
+  }
+
+  if (warnings.length > 0) {
+    hint.textContent = `Warning: ${warnings.join(' ; ')}`;
+  }
+}
+
+function renderQuickActions() {
+  const bar = document.getElementById('quickActionsBar');
+  const actions = allowedQuickActions();
+  bar.innerHTML = actions.map(a =>
+    `<button class="quick-btn" type="button" data-action="${a}">${a}</button>`
+  ).join('');
+
+  for (const btn of bar.querySelectorAll('button[data-action]')) {
+    btn.onclick = () => quickAction(btn.dataset.action);
+  }
+
+  const currentType = document.getElementById('actionTypeInput').value.trim();
+  if (!actions.includes(currentType) && actions.length > 0) {
+    document.getElementById('actionTypeInput').value = actions[0];
+  }
+}
+
+function setModeUI() {
+  const modeBtn = document.getElementById('modeToggleBtn');
+  const phaseSelect = document.getElementById('phaseSelect');
+  const phaseLabel = document.getElementById('phaseLabel');
+  const endpoint = roundControlMode ? '/action' : '/test/action';
+
+  modeBtn.textContent = roundControlMode
+    ? 'Round controlled mode (/action)'
+    : 'Direct handler mode (/test/action)';
+  modeBtn.classList.remove('btn-mode-direct', 'btn-mode-controlled', 'btn-refresh');
+  modeBtn.classList.add(roundControlMode ? 'btn-mode-controlled' : 'btn-mode-direct');
+  phaseSelect.disabled = roundControlMode;
+  phaseLabel.textContent = roundControlMode ? 'Phase (server controlled)' : 'Phase';
+
+  if (roundControlMode && currentCtrl && currentCtrl.phase) {
+    phaseSelect.value = currentCtrl.phase;
+  }
+  renderQuickActions();
+  renderSuggestionHint();
+  applySuggestionsToInputs();
+  validateControlledInputs();
+  log('Mode switched to ' + endpoint, 'ok');
+}
+
+function toggleRoundControlMode() {
+  roundControlMode = !roundControlMode;
+  setModeUI();
+}
 
 const BOARD_W = 600;
 const BOARD_H = 320;
@@ -640,6 +868,10 @@ function sidePos(cx, cy, s, side) {
   const r = s * 0.866;
   const a = angles[side] * Math.PI / 180;
   return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
+}
+
+function normalizeSide(side) {
+  return ((side % 6) + 6) % 6;
 }
 
 /** Edge midpoint in board-wrap coordinates (same as people marker). */
@@ -767,12 +999,14 @@ function renderBoard(boardData, peopleToken, payload = []) {
       });
     }
 
-    // Side number labels at edge midpoints, pulled inward to avoid overlap with neighbor tiles
+    // Show stack-local side numbers at their rotated board positions.
     let sideLabels = '';
+    const rotation = normalizeSide(parseInt(tile.rotation ?? 0));
     for (let s = 0; s < 6; s++) {
       const lp = sidePos(cx, cy, HEX * 0.82, s);
+      const stackSideLabel = normalizeSide(s - rotation);
       sideLabels += `<text x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}" ` +
-        `font-size="8" fill="rgba(255,255,255,0.6)" text-anchor="middle" dominant-baseline="central">${s}</text>`;
+        `font-size="8" fill="rgba(255,255,255,0.6)" text-anchor="middle" dominant-baseline="central">${stackSideLabel}</text>`;
     }
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -791,25 +1025,28 @@ function renderBoard(boardData, peopleToken, payload = []) {
       `<text x="${cx}" y="${cy + 20}" class="hex-ring">${pos.ring}</text>`;
     svg.onclick = () => {
       const pathStr = tile.paths ? Object.entries(tile.paths).map(([f,t]) => `${f}→${t}`).join(', ') : 'none';
-      log(`Tile T${tile.position}: ${typeName} (${pos.ring}) | paths: ${pathStr}`, 'info');
+      log(`Tile T${tile.position}: ${typeName} (${pos.ring}) | rotation: ${rotation} | paths: ${pathStr}`, 'info');
     };
     wrap.appendChild(svg);
   });
 
   if (peopleToken) {
     const tileId = peopleToken[0] !== undefined ? peopleToken[0] : -1;
-    const side = peopleToken[1] !== undefined ? peopleToken[1] : -1;
+    const boardSide = peopleToken[1] !== undefined ? peopleToken[1] : -1;
     const pos = tilePositions.find(p => p.id === tileId);
     if (pos) {
+      const tokenTile = boardData.find(t => t.position === tileId) || {};
+      const tokenRotation = normalizeSide(parseInt(tokenTile.rotation ?? 0));
+      const stackSide = boardSide >= 0 && boardSide < 6 ? normalizeSide(boardSide - tokenRotation) : -1;
       const marker = document.createElement('div');
       marker.className = 'ppl-marker';
       marker.textContent = 'P';
-      marker.title = `People token: tile ${tileId}, side ${side}`;
+      marker.title = `People token: tile ${tileId}, board side ${boardSide}, stack side ${stackSide}`;
       // Align with SVG layout: hex center in each svg is (W/2, H/2), tile origin is top-left.
-      // Place marker on the requested edge midpoint (same geometry as side number labels).
+      // People token lives on the board edge, so rotation changes its stack-side label but not its coordinate.
       const cx = W / 2;
       const cy = H / 2;
-      const edge = side >= 0 && side < 6 ? sidePos(cx, cy, HEX * 1.06, side) : { x: cx, y: cy };
+      const edge = boardSide >= 0 && boardSide < 6 ? sidePos(cx, cy, HEX * 1.06, boardSide) : { x: cx, y: cy };
       const mw = 24;
       marker.style.left = (pos.x - W / 2 + edge.x - mw / 2) + 'px';
       marker.style.top = (pos.y - H / 2 - BOARD_Y_OFFSET + edge.y - mw / 2) + 'px';
@@ -885,22 +1122,38 @@ function renderCtrl(ctrl) {
   currentCtrl = ctrl;
   const el = document.getElementById('ctrlInfo');
   if (!ctrl) { el.textContent = 'No controller data'; return; }
+  if (roundControlMode && ctrl.phase) {
+    const phaseSelect = document.getElementById('phaseSelect');
+    phaseSelect.value = ctrl.phase;
+    renderQuickActions();
+  }
+  renderSuggestionHint();
+  applySuggestionsToInputs();
+  validateControlledInputs();
   el.innerHTML = `
     <div class="ctrl-item"><span class="stat-label">Round</span><span class="val">${ctrl.round}</span></div>
-    <div class="ctrl-item"><span class="stat-label">Phase</span><span class="val">${ctrl.phase}</span></div>
     <div class="ctrl-item"><span class="stat-label">Current player</span><span class="val">P${ctrl.currentPlayerId}</span></div>
+    <div class="ctrl-item"><span class="stat-label">Phase</span><span class="val">${ctrl.phase}</span></div>
     <div class="ctrl-item"><span class="stat-label">Game over</span><span class="val">${ctrl.gameOver ? 'YES' : 'No'}</span></div>
   `;
 }
 
-function renderTokenInfo(peopleToken) {
+function renderTokenInfo(peopleToken, boardData = []) {
   const el = document.getElementById('tokenInfo');
   if (!el) return;
   if (!Array.isArray(peopleToken) || peopleToken.length < 2) {
-    el.textContent = 'People token: --';
+    el.innerHTML = `<span class="stat-label">People token</span><span class="val">--</span>`;
     return;
   }
-  el.textContent = `People token: T${peopleToken[0]}, S${peopleToken[1]}`;
+  const tileId = peopleToken[0];
+  const boardSide = peopleToken[1];
+  const tile = boardData.find(t => t.position === tileId) || {};
+  const rotation = normalizeSide(parseInt(tile.rotation ?? 0));
+  const stackSide = boardSide >= 0 && boardSide < 6 ? normalizeSide(boardSide - rotation) : boardSide;
+  const sideText = stackSide === boardSide
+    ? `T${tileId}, side ${boardSide}`
+    : `T${tileId}, edge side ${boardSide} (stack side ${stackSide})`;
+  el.innerHTML = `<span class="stat-label">People token</span><span class="val">${sideText}</span>`;
 }
 
 /** Valid target_tile rings for Adapt slot index (matches AdoptPhaseHandler). */
@@ -1035,7 +1288,7 @@ async function fetchState() {
     console.log('payload =', lastPayload);
 
     renderBoard(gs.board || [], gs.peopleToken, lastPayload);
-    renderTokenInfo(gs.peopleToken);
+    renderTokenInfo(gs.peopleToken, gs.board || []);
     renderAdaptPanel(gs.adapt);
     renderParams(gs.params || {});
     renderPool(gs.pool || {});
@@ -1052,16 +1305,34 @@ async function fetchState() {
 }
 
 async function sendAction() {
-  const phase = document.getElementById('phaseSelect').value;
-  const playerId = parseInt(document.getElementById('playerIdInput').value) || 0;
-  const type = document.getElementById('actionTypeInput').value.trim();
-  let params = {};
-  try { params = JSON.parse(document.getElementById('paramsInput').value); } catch(e) {}
+  const endpoint = roundControlMode ? '/action' : '/test/action';
+  const useRaw = document.getElementById('useRawRequestToggle').checked;
+  let body;
 
-  const body = { phase, playerId, type, params };
-  log('→ POST /test/action ' + JSON.stringify(body), 'req');
+  if (useRaw) {
+    const raw = document.getElementById('rawRequestInput').value;
+    try {
+      body = JSON.parse(raw);
+      if (!body || typeof body !== 'object' || Array.isArray(body))
+        throw new Error('raw request must be a JSON object');
+    } catch (e) {
+      log('Raw JSON parse error: ' + e.message, 'err');
+      return;
+    }
+  } else {
+    const phase = document.getElementById('phaseSelect').value;
+    const playerId = parseInt(document.getElementById('playerIdInput').value) || 0;
+    const type = document.getElementById('actionTypeInput').value.trim();
+    let params = {};
+    try { params = JSON.parse(document.getElementById('paramsInput').value); } catch(e) {}
+    body = roundControlMode ? { playerId, type, params } : { phase, playerId, type, params };
+  }
+
+  validateControlledInputs(body);
+
+  log('→ POST ' + endpoint + ' ' + JSON.stringify(body), 'req');
   try {
-    const res = await fetch(API + '/test/action', {
+    const res = await fetch(API + endpoint, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
@@ -1098,6 +1369,23 @@ function quickAction(type) {
 
 document.getElementById('sendBtn').onclick = sendAction;
 document.getElementById('refreshBtn').onclick = fetchState;
+document.getElementById('modeToggleBtn').onclick = toggleRoundControlMode;
+document.getElementById('applySuggestBtn').onclick = () => applySuggestionsToInputs(true);
+document.getElementById('phaseSelect').addEventListener('change', renderQuickActions);
+document.getElementById('playerIdInput').addEventListener('input', () => validateControlledInputs());
+document.getElementById('actionTypeInput').addEventListener('input', () => validateControlledInputs());
+document.getElementById('useRawRequestToggle').addEventListener('change', () => validateControlledInputs());
+document.getElementById('rawRequestInput').addEventListener('input', () => {
+  if (!document.getElementById('useRawRequestToggle').checked) return;
+  try {
+    const body = JSON.parse(document.getElementById('rawRequestInput').value);
+    if (body && typeof body === 'object' && !Array.isArray(body)) {
+      validateControlledInputs(body);
+      return;
+    }
+  } catch (_) {}
+  validateControlledInputs();
+});
 document.getElementById('clearRouteBtn').onclick = () => {
   clearWalkRouteOverlay();
   fetchState();
@@ -1109,6 +1397,12 @@ document.getElementById('actionTypeInput').addEventListener('keydown', e => {
 document.getElementById('paramsInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendAction();
 });
+document.getElementById('rawRequestInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAction();
+});
+
+setModeUI();
+renderQuickActions();
 </script>
 </body>
 </html>

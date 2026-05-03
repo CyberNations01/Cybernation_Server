@@ -11,7 +11,8 @@
  *   - Resolve feedback tokens in strict slot order (inner -> middle -> outer)
  *   - Allow cancel/allow decisions with cybernation payment
  *   - Apply token effects (including DevA/DevB development transitions)
- *   - Route draw/resolve disruption through GameUtility (shared with Traverse; use resolve_disruption + cancel param)
+ *   - During Adopt, disruption draw is triggered only by SOLVE_DISRUPTION feedback;
+ *     explicit draw_disruption action is not allowed (resolve_disruption remains available)
  *   - Expose Adapt status for UI synchronization
  *   - When the last feedback token is resolved, step-2 token bag / reserve cleanup runs automatically
  *     (victory / turn end will be handled by RoundController)
@@ -25,6 +26,7 @@ public:
     ActionResult handle(const Action& action, GameState& state) override;
     GamePhase    getPhase() const override { return GamePhase::ADOPT; }
     static bool isTileOccupiedForAdaptPrompt(const GameState& state, int tilePos);
+    bool preparePhase(GameState& state);
 
 private:
     ActionResult handleResolveFeedback(const Action& action, GameState& state);

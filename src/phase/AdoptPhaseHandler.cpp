@@ -153,6 +153,18 @@ bool AdoptPhaseHandler::isTileOccupiedForAdaptPrompt(const GameState& state, int
     return occupied[tilePos];
 }
 
+bool AdoptPhaseHandler::preparePhase(GameState& state) {
+    if (!state.adaptTrack.empty()) {
+        runtimeFor(state);
+        return true;
+    }
+
+    // At the start of a round, the visible Adapt track is generated from the current board.
+    // Existing bag tokens stay in the bag; add newly available board tokens from the finite pool.
+    state.rebuildTokenBag();
+    return ensureAdaptTrackInitialized(state);
+}
+
 ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
     if (action.isPass()) {
         return fail(ActionStatus::INVALID_ACTION, "Pass is not allowed during Adopt phase");
@@ -161,9 +173,10 @@ ActionResult AdoptPhaseHandler::handle(const Action& action, GameState& state) {
     if (action.type == "resolve_feedback") {
         return handleResolveFeedback(action, state);
     }
-    // Disruption: same as Traverse — only drawDisruption / applyDisruptionEffect (activeDisruption in state).
+    // In controlled Adopt flow, disruption is drawn by SOLVE_DISRUPTION feedback (Agora) only.
     if (action.type == "draw_disruption") {
-        return GameUtility::drawDisruption(state);
+        return fail(ActionStatus::INVALID_ACTION,
+                    "draw_disruption is not valid during Adopt; use resolve_feedback (SOLVE_DISRUPTION)");
     }
     if (action.type == "resolve_disruption") {
         if (action.params.find("disruption_name") != action.params.end()) {
@@ -308,7 +321,7 @@ nlohmann::json AdoptPhaseHandler::finalizeAdaptPhaseCleanup(GameState& state) {
     returnable[0] = true;
     for (int t = 7; t <= 10; ++t) returnable[t] = true;
 
-    std::vector<TokenEffect> nextBag;
+    std::vector<TokenEffect> nextBag = state.tokenBag;
     int returnedToBag = 0;
     int discarded = 0;
     for (int i = 0; i < static_cast<int>(state.adaptTrack.size()); ++i) {

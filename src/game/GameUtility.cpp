@@ -67,35 +67,38 @@ ActionResult GameUtility::walkPath(GameState &state)
         }
 
 
-        connectedSide = travereStack.getConnectedSide(tokenLocation.second);
+        const int entryBoardSide = tokenLocation.second;
+        const int entryStackSide = currentTile.boardSideToStackSide(entryBoardSide);
+        connectedSide = travereStack.getConnectedSide(entryStackSide);
         if (connectedSide == -1) 
             break;
+        const int exitBoardSide = currentTile.stackSideToBoardSide(connectedSide);
         
         /* 2. Resource Collection 
             - If Overlay Stack exist, collect both stack resources
             - Collect resources for both of the connected sides 
         */ 
-        auto collectAndApply = [&](const Stack& stack, int side, const std::string& layer) {
-            const auto& resources = stack.getSides()[side];
-            resJson.push_back(pathResultToJson(tokenLocation.first, side, resources, layer));
+        auto collectAndApply = [&](const Stack& stack, int stackSide, int boardSide, const std::string& layer) {
+            const auto& resources = stack.getSides()[stackSide];
+            resJson.push_back(pathResultToJson(tokenLocation.first, boardSide, resources, layer));
             for (const auto& r : resources)
                 applyResource(state, r);
         };
 
-        collectAndApply(baseStack, tokenLocation.second, "base");
-        collectAndApply(baseStack, connectedSide, "base");
+        collectAndApply(baseStack, entryStackSide, entryBoardSide, "base");
+        collectAndApply(baseStack, connectedSide, exitBoardSide, "base");
 
         if (currentTile.hasOverlay()) {
-            collectAndApply(overlayStack, tokenLocation.second, "overlay");
-            collectAndApply(overlayStack, connectedSide, "overlay");
+            collectAndApply(overlayStack, entryStackSide, entryBoardSide, "overlay");
+            collectAndApply(overlayStack, connectedSide, exitBoardSide, "overlay");
         }
 
         /*! 3. Update tokenLocation */ 
-        std::pair<int,int> next = currentTile.getNeighbours()[connectedSide];
+        std::pair<int,int> next = currentTile.getNeighbours()[exitBoardSide];
         if (next.first < 0  || next.second < 0 ||
             next.first  >= GameState::NUM_TILE   || 
-            next.second >= GameState::NUM_TILE) {
-                tokenLocation.second = connectedSide;
+            next.second >= Tile::TILE_SIDES) {
+                tokenLocation.second = exitBoardSide;
                 break;
         }
 

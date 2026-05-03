@@ -90,22 +90,19 @@
 ```
 
 **7. Feedback track (not an action)**  
-The server builds the token bag from the current board, shuffles, and fills 11 `adaptTrack` slots when Adapt first needs the track (e.g. before the first `resolve_feedback`). The client reads track state from `gameState` / snapshot; there is no `fill_track` request.
+At the start of each Envision round, before player actions, the server adds feedback tokens from the current board into the existing token bag (limited by the finite pool), shuffles the bag, and draws up to 11 `adaptTrack` slots from it. Drawn tokens leave the bag; whether they return later is decided by ADOPT cleanup rules. The client reads track state from `gameState` / snapshot; there is no `fill_track` request.
 
 <br></br>
 
 ### `Traverse Phase`
 
-**1. Walk People Token**
-```json
-{
-    "phase": "TRAVERSE",
-    "playerId": 0,
-    "type": "walk_path"
-}
-```
+Controlled flow enforces this order:
+`draw_disruption` -> `resolve_disruption` -> `walk_path`.
 
-**2. Draw Disruption Card**
+After a successful `walk_path`, controller advances to `ADOPT` automatically.
+`advance` is not used in controlled `TRAVERSE`.
+
+**1. Draw Disruption Card**
 ```json
 {
     "phase": "TRAVERSE",
@@ -114,7 +111,7 @@ The server builds the token bag from the current board, shuffles, and fills 11 `
 }
 ```
 
-**3. Resolve Disruption Card**
+**2. Resolve Disruption Card**
 ```json
 {
     "phase": "TRAVERSE",
@@ -138,6 +135,15 @@ The server builds the token bag from the current board, shuffles, and fills 11 `
             "amount": "1"
         }
     }
+}
+```
+
+**3. Walk People Token**
+```json
+{
+    "phase": "TRAVERSE",
+    "playerId": 0,
+    "type": "walk_path"
 }
 ```
 
@@ -156,7 +162,7 @@ CatK:              { "src": "HR", "dst": "Tech", "amount": "1" }
 ```
 
 <br></br>
-### `Adapt Phase`
+### `Adapt / ADOPT Phase`
 
 **1. Resolve feedback**
 ```json
@@ -171,16 +177,7 @@ CatK:              { "src": "HR", "dst": "Tech", "amount": "1" }
 }
 ```
 
-**2. Draw disruption**
-```json
-{
-    "phase": "ADOPT",
-    "playerId": 0,
-    "type": "draw_disruption"
-}
-```
-
-**3. Resolve disruption** (see Traverse Section 3 for `params` / Category fields; optional `disruption_name`, `times`, `decision` on same `type`)
+**2. Resolve disruption** (see Traverse Section 3 for `params` / Category fields; optional `disruption_name`, `times`, `decision` on same `type`)
 ```json
 {
     "phase": "ADOPT",
@@ -206,6 +203,12 @@ CatK:              { "src": "HR", "dst": "Tech", "amount": "1" }
     }
 }
 ```
+
+In ADOPT, **`draw_disruption` is not a valid standalone action** in controlled flow.
+Disruption draw happens automatically when `resolve_feedback` allows the `SOLVE_DISRUPTION` (Agora) token.
+Then the same player must call **`resolve_disruption`** before the next player's `resolve_feedback`.
+When feedback sequence completes, controller advances phase automatically.
+`advance` is not used in controlled `ADOPT`.
 
 Use **`resolve_disruption`** with **`"cancel": "1"`** in `params` when you need the same behaviour as the old Adopt-only alias (see Traverse Section 3).
 

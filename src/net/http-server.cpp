@@ -50,6 +50,44 @@ int main()
     server.Options(".*", [](const httplib::Request&, httplib::Response& res) {
         res.status = 204;
     });
+
+    /* POST /action — go through GameRoom/RoundController (phase is controlled by server state) */
+    server.Post("/action", [&](const httplib::Request& req, httplib::Response& res) {
+        json body = json::parse(req.body, nullptr, false);
+        if (body.is_discarded()) {
+            res.status = 400;
+            res.set_content(R"({"error":"invalid JSON"})", "application/json");
+            return;
+        }
+
+        Action action;
+        action.playerId = body.value("playerId", -1);
+        action.type = body.value("type", "");
+
+        if (action.playerId < 0) {
+            res.status = 400;
+            res.set_content(R"({"error":"missing or invalid 'playerId'"})", "application/json");
+            return;
+        }
+        if (action.type.empty()) {
+            res.status = 400;
+            res.set_content(R"({"error":"missing or invalid 'type'"})", "application/json");
+            return;
+        }
+
+        if (body.contains("params") && body["params"].is_object()) {
+            for (auto& [k, v] : body["params"].items()) {
+                action.params[k] = v.is_string() ? v.get<std::string>() : v.dump();
+            }
+        }
+
+        ActionResult result = room.receiveAction(action);
+        json response = actionResultToJson(result);
+        response["gameState"] = room.getState().toJson();
+        response["controller"] = room.getController().toJson();
+        response["sessionId"] = room.getSessionId();
+        res.set_content(response.dump(2), "application/json");
+    });
  
     /* POST /test/action — bypass RoundController, invoke PhaseHandler directly
      *

@@ -105,8 +105,8 @@ int GameState::findFirstPlayer() const
 
 void GameState::rebuildTokenBag()
 {
-    tokenBag.clear();
-    // Rebuild bag from current board state by drawing matching tokens from reserve.
+    // Add current-board feedback tokens to the existing bag; leftover bag tokens stay there
+    // across rounds unless Adapt cleanup returns/removes them by rule.
     for (const auto& tile : board) {
         TokenEffect token = mapStackTypeToFeedbackToken(tile.getEffectiveType());
         if (token == TokenEffect::UNKNOWN){
@@ -220,11 +220,12 @@ nlohmann::json GameState::toJson() const
         const Stack& stack = t.hasOverlay() ? t.getOverlay() : t.getBase();
         nlohmann::json paths = nlohmann::json::object();
         for (const auto& [from, to] : stack.getPaths()) {
-            paths[std::to_string(from)] = to;
+            paths[std::to_string(t.stackSideToBoardSide(from))] = t.stackSideToBoardSide(to);
         }
         j["board"].push_back({
             {"position", t.getPosition()},
             {"type",     stackTypeToStr(t.getEffectiveType())},
+            {"rotation", t.getRotation()},
             {"paths",    paths}
         });
     }
@@ -264,6 +265,12 @@ nlohmann::json GameState::toJson() const
         j["tokenBagBreakdown"] = bagBreakdown;
     }
     j["peopleToken"] = {peopleToken.first, peopleToken.second};
+    j["peopleTokenBoardSide"] = peopleToken.second;
+    if (peopleToken.first >= 0 && peopleToken.first < static_cast<int>(board.size())) {
+        j["peopleTokenStackSide"] = board[peopleToken.first].boardSideToStackSide(peopleToken.second);
+    } else {
+        j["peopleTokenStackSide"] = peopleToken.second;
+    }
 
     nlohmann::json adaptTrackJson = nlohmann::json::array();
     for (const auto& te : adaptTrack) {
