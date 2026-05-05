@@ -7,6 +7,7 @@
 #include "core/Action.hpp"
 #include "core/ActionResult.hpp"
 #include "core/Types.hpp"
+#include <memory>
  
 using json = nlohmann::json;
  
@@ -29,7 +30,7 @@ static json actionResultToJson(const ActionResult& result)
 int main()
 {
     httplib::Server server;
-    GameRoom room;
+    auto room = std::make_unique<GameRoom>();
  
     EnvisionPhaseHandler envisionHandler;
     TraversePhaseHandler traverseHandler;
@@ -44,7 +45,7 @@ int main()
 
     /* GET /state — full game state snapshot */
     server.Get("/state", [&](const httplib::Request&, httplib::Response& res) {
-        res.set_content(room.getSnapshot(), "application/json");
+        res.set_content(room->getSnapshot(), "application/json");
     });
 
     server.Options(".*", [](const httplib::Request&, httplib::Response& res) {
@@ -81,11 +82,27 @@ int main()
             }
         }
 
-        ActionResult result = room.receiveAction(action);
+        ActionResult result = room->receiveAction(action);
         json response = actionResultToJson(result);
-        response["gameState"] = room.getState().toJson();
-        response["controller"] = room.getController().toJson();
-        response["sessionId"] = room.getSessionId();
+        response["gameState"] = room->getState().toJson();
+        response["controller"] = room->getController().toJson();
+        response["sessionId"] = room->getSessionId();
+        res.set_content(response.dump(2), "application/json");
+    });
+
+    /* POST /reset — recreate GameRoom (fresh state + new sessionId) */
+    server.Post("/reset", [&](const httplib::Request&, httplib::Response& res) {
+        room = std::make_unique<GameRoom>();
+        json response = {
+            {"status", 0},
+            {"message", {
+                {"type", "reset"},
+                {"payload", "Game room reset"}
+            }},
+            {"gameState", room->getState().toJson()},
+            {"controller", room->getController().toJson()},
+            {"sessionId", room->getSessionId()}
+        };
         res.set_content(response.dump(2), "application/json");
     });
  
@@ -136,11 +153,11 @@ int main()
             return;
         }
  
-        ActionResult result = handler->handle(action, room.getState());
+        ActionResult result = handler->handle(action, room->getState());
         json response = actionResultToJson(result);
-        response["gameState"]  = room.getState().toJson();
-        response["controller"] = room.getController().toJson();
-        response["sessionId"] = room.getSessionId();
+        response["gameState"]  = room->getState().toJson();
+        response["controller"] = room->getController().toJson();
+        response["sessionId"] = room->getSessionId();
         res.set_content(response.dump(2), "application/json");
     });
  

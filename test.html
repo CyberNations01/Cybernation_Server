@@ -664,7 +664,15 @@ h1 {
   <div class="ctrl-row">
     <button class="btn btn-primary" id="sendBtn">Send action</button>
     <button class="btn btn-refresh" id="refreshBtn">Refresh state</button>
+    <button type="button" class="btn" id="resetBtn" title="Reset server game room">Reset game</button>
     <button type="button" class="btn" id="clearRouteBtn" title="Clear highlighted walk_path only">Clear route</button>
+  </div>
+  <div class="ctrl-row">
+    <button class="btn btn-mode-controlled" id="autoRunBtn" type="button">Start auto-run (controlled)</button>
+    <label style="margin:0;">Delay(ms)</label>
+    <input id="autoRunDelayInput" type="number" min="30" max="3000" step="10" value="440" style="width:92px;" />
+    <span id="autoRunStatus" style="font-size:12px;color:#8aa0c2;">Auto-run: idle</span>
+    <span id="serverSessionHint" style="font-size:12px;color:#5c6b84;">session: --</span>
   </div>
   <div class="log-box" id="logBox">Ready. Click "Refresh state" to load game state from server.\n</div>
 </div>
@@ -705,6 +713,17 @@ let walkPathHighlight = null;
 /** Server GameRoom session; changes after server restart (see GET /state sessionId). */
 let lastServerSessionId = null;
 let roundControlMode = false;
+let currentActiveDisruption = null;
+let lastDisruptionTemplateKey = null;
+let latestGameState = null;
+let autoRunEnabled = false;
+let autoRunBusy = false;
+let autoRunStepCount = 0;
+let autoRunFailStreak = 0;
+let autoRunTimer = null;
+let autoRunAdoptUsedTiles = new Set();
+let autoRunLastPhase = null;
+let autoRunSessionId = null;
 
 const QUICK_ACTIONS_BY_PHASE = {
   ENVISION: ['shift_power', 'come_together', 'prepare', 'set_course', 'connect', 'steer', 'pass', 'advance'],
@@ -752,6 +771,65 @@ function renderSuggestionHint() {
   hint.textContent = `Suggestion: playerId=${sug.suggestedPlayer}, action=${sug.suggestedAction || '-'} (allowed: ${allowedStr})`;
 }
 
+function getResolveDisruptionTemplate(disruption) {
+  if (!disruption || !disruption.category) return null;
+  const category = String(disruption.category);
+  switch (category) {
+    case 'CatA':
+      return { canceltiles: 'tileId1,tileId2' };
+    case 'CatB':
+      return { cancel: '1', canceltiles: 'tileId1,tileId2' };
+    case 'CatC':
+    case 'CatD':
+      return { canceltiles: 'tileId1,tileId2' };
+    case 'CatE':
+      return { cancel: '1' };
+    case 'CatF':
+      return { HR: '0', Tech: '0', Env: '0' };
+    case 'CatG':
+      return { effectIndex: '0,1,0' };
+    case 'CatH':
+      return { effectIndex: '0', ppl: 'tileId,side' };
+    case 'CatI':
+      return { targetTiles: 'tileId1,tileId2' };
+    case 'CatJ':
+      return { useOptional: '1' };
+    case 'CatK':
+      return { src: 'HR', dst: 'Tech', amount: '1' };
+    default:
+      return {};
+  }
+}
+
+function renderDisruptionTemplateHint(disruption) {
+  const hint = document.getElementById('suggestionHint');
+  if (!hint) return;
+  if (!disruption) return;
+  const name = disruption.name || 'UNKNOWN';
+  const category = disruption.category || '?';
+  hint.textContent += ` | disruption=${name} (${category})`;
+}
+
+function maybeSuggestResolveDisruptionParams(force = false) {
+  if (document.getElementById('useRawRequestToggle').checked) return;
+  if (!force && !document.getElementById('autoSuggestToggle').checked) return;
+  const actionType = document.getElementById('actionTypeInput').value.trim();
+  if (actionType !== 'resolve_disruption') return;
+  if (!currentActiveDisruption) return;
+
+  const templateObj = getResolveDisruptionTemplate(currentActiveDisruption);
+  if (!templateObj) return;
+  const templateStr = JSON.stringify(templateObj);
+  const paramsInput = document.getElementById('paramsInput');
+  const currentVal = paramsInput.value.trim();
+  const disruptionKey = `${currentActiveDisruption.name || ''}|${currentActiveDisruption.category || ''}`;
+  const shouldOverwrite = force || disruptionKey !== lastDisruptionTemplateKey || currentVal === '' || currentVal === '{}' || currentVal === 'null';
+  if (!shouldOverwrite) return;
+
+  paramsInput.value = templateStr;
+  lastDisruptionTemplateKey = disruptionKey;
+}
+
 function applySuggestionsToInputs(force = false) {
   if (!roundControlMode) return;
   if (!force && !document.getElementById('autoSuggestToggle').checked) return;
@@ -765,6 +843,7 @@ function applySuggestionsToInputs(force = false) {
   if (sug.suggestedAction) {
     document.getElementById('actionTypeInput').value = sug.suggestedAction;
   }
+  maybeSuggestResolveDisruptionParams(force);
 }
 
 function validateControlledInputs(body = null) {
@@ -1226,11 +1305,31 @@ function renderAdaptPanel(adapt) {
 
 function renderDisruption(d) {
   const bar = document.getElementById('disruptionBar');
-  if (!d) { bar.classList.remove('active'); return; }
+  currentActiveDisruption = d || null;
+  if (!d) {
+    bar.classList.remove('active');
+    return;
+  }
   bar.classList.add('active');
   document.getElementById('disruptName').textContent = d.name || '?';
   document.getElementById('disruptCat').textContent = d.category || '?';
   document.getElementById('disruptCancel').textContent = d.cancellable ? 'Yes' : 'No';
+  renderSuggestionHint();
+  renderDisruptionTemplateHint(d);
+  maybeSuggestResolveDisruptionParams();
+}
+
+function updateAutoRunStatus(text, isErr = false) {
+  const el = document.getElementById('autoRunStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = isErr ? '#ef9a9a' : '#8aa0c2';
+}
+
+function renderSessionHint(sessionId) {
+  const el = document.getElementById('serverSessionHint');
+  if (!el) return;
+  el.textContent = 'session: ' + (sessionId || '--');
 }
 
 function log(msg, type) {
@@ -1245,7 +1344,7 @@ function escHtml(s) {
 }
 async function fetchState() {
   try {
-    const res = await fetch(API + '/state');
+    const res = await fetch(API + '/state?ts=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
 
     let gs = data?.gameState ?? {};
@@ -1260,10 +1359,17 @@ async function fetchState() {
 
     const sid = data.sessionId;
     if (typeof sid === 'string' && sid.length > 0) {
+      if (autoRunEnabled && autoRunSessionId && sid !== autoRunSessionId) {
+        log(`Auto-run stopped: backend session switched (${autoRunSessionId} -> ${sid})`, 'err');
+        stopAutoRun('failed: backend session switched');
+      }
       if (lastServerSessionId !== null && sid !== lastServerSessionId) {
         clearWalkRouteOverlay();
       }
       lastServerSessionId = sid;
+      renderSessionHint(sid);
+    } else {
+      renderSessionHint(null);
     }
 
     // Only replace lastPayload / route highlight when this response actually carries a payload array.
@@ -1286,6 +1392,7 @@ async function fetchState() {
     console.log('parsed gameState =', gs);
     console.log('parsed controller =', ctrl);
     console.log('payload =', lastPayload);
+    latestGameState = gs;
 
     renderBoard(gs.board || [], gs.peopleToken, lastPayload);
     renderTokenInfo(gs.peopleToken, gs.board || []);
@@ -1298,36 +1405,19 @@ async function fetchState() {
     renderDisruption(gs.activeDisruption || null);
 
     log('State refreshed', 'ok');
+    return true;
   } catch (e) {
     console.error(e);
+    currentCtrl = null;
+    latestGameState = null;
+    renderCtrl(null);
+    renderDisruption(null);
     log('Fetch error: ' + e.message, 'err');
+    return false;
   }
 }
 
-async function sendAction() {
-  const endpoint = roundControlMode ? '/action' : '/test/action';
-  const useRaw = document.getElementById('useRawRequestToggle').checked;
-  let body;
-
-  if (useRaw) {
-    const raw = document.getElementById('rawRequestInput').value;
-    try {
-      body = JSON.parse(raw);
-      if (!body || typeof body !== 'object' || Array.isArray(body))
-        throw new Error('raw request must be a JSON object');
-    } catch (e) {
-      log('Raw JSON parse error: ' + e.message, 'err');
-      return;
-    }
-  } else {
-    const phase = document.getElementById('phaseSelect').value;
-    const playerId = parseInt(document.getElementById('playerIdInput').value) || 0;
-    const type = document.getElementById('actionTypeInput').value.trim();
-    let params = {};
-    try { params = JSON.parse(document.getElementById('paramsInput').value); } catch(e) {}
-    body = roundControlMode ? { playerId, type, params } : { phase, playerId, type, params };
-  }
-
+async function postActionBody(body, endpoint) {
   validateControlledInputs(body);
 
   log('→ POST ' + endpoint + ' ' + JSON.stringify(body), 'req');
@@ -1355,8 +1445,58 @@ async function sendAction() {
     }
 
     await fetchState();
+    return data;
   } catch(e) {
     log('Error: ' + e.message, 'err');
+    return { status: 99, message: { type: 'network_error', payload: e.message } };
+  }
+}
+
+async function sendAction() {
+  const endpoint = roundControlMode ? '/action' : '/test/action';
+  const useRaw = document.getElementById('useRawRequestToggle').checked;
+  let body;
+
+  if (useRaw) {
+    const raw = document.getElementById('rawRequestInput').value;
+    try {
+      body = JSON.parse(raw);
+      if (!body || typeof body !== 'object' || Array.isArray(body))
+        throw new Error('raw request must be a JSON object');
+    } catch (e) {
+      log('Raw JSON parse error: ' + e.message, 'err');
+      return;
+    }
+  } else {
+    const phase = document.getElementById('phaseSelect').value;
+    const playerId = parseInt(document.getElementById('playerIdInput').value) || 0;
+    const type = document.getElementById('actionTypeInput').value.trim();
+    let params = {};
+    try { params = JSON.parse(document.getElementById('paramsInput').value); } catch(e) {}
+    body = roundControlMode ? { playerId, type, params } : { phase, playerId, type, params };
+  }
+
+  await postActionBody(body, endpoint);
+}
+
+async function resetGameRoom() {
+  if (!confirm('Reset game room now? This will clear current progress.')) return;
+  stopAutoRun('stopped: reset');
+  log('→ POST /reset', 'req');
+  try {
+    const res = await fetch(API + '/reset', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      cache: 'no-store'
+    });
+    const data = await res.json();
+    const status = data.status === 0 ? 'ok' : 'err';
+    log('← ' + JSON.stringify(data, null, 0), status);
+    clearWalkRouteOverlay();
+    await fetchState();
+    updateAutoRunStatus('Auto-run: idle (after reset)');
+  } catch (e) {
+    log('Reset error: ' + e.message, 'err');
   }
 }
 
@@ -1365,15 +1505,209 @@ function quickAction(type) {
   if (type === 'pass' || type === 'advance') {
     document.getElementById('paramsInput').value = '{}';
   }
+  if (type === 'resolve_disruption') {
+    maybeSuggestResolveDisruptionParams(true);
+  }
+}
+
+function ringTilesForAdaptCursor(cursor) {
+  if (cursor <= 0) return [0];
+  if (cursor <= 6) return [1, 2, 3, 4, 5, 6];
+  return [7, 8, 9, 10];
+}
+
+function autoRunPickAdoptTiles() {
+  const adapt = latestGameState && latestGameState.adapt ? latestGameState.adapt : {};
+  const cursor = Number.isInteger(adapt.cursor) ? adapt.cursor : 0;
+  const ring = ringTilesForAdaptCursor(cursor);
+  const free = ring.filter(t => !autoRunAdoptUsedTiles.has(t));
+  return free.length > 0 ? free : ring;
+}
+
+function autoRunBuildResolveDisruptionCandidates() {
+  const d = currentActiveDisruption || {};
+  const category = d.category || '';
+  const ppl = Array.isArray(latestGameState?.peopleToken) ? latestGameState.peopleToken : [0, 0];
+  const pplTile = Number.isInteger(ppl[0]) ? ppl[0] : 0;
+  const pplSide = Number.isInteger(ppl[1]) ? ppl[1] : 0;
+  const p = latestGameState?.params || {};
+  const r = {
+    HR: Number(p.humanRelation || 0),
+    Env: Number(p.environment || 0),
+    Tech: Number(p.technology || 0),
+    Cy: Number(p.cybernationLevel || 0)
+  };
+  const tradeable = ['HR', 'Env', 'Tech', 'Cy'];
+  const src = tradeable.find(k => r[k] > 0) || 'HR';
+  const dst = tradeable.find(k => k !== src) || 'Tech';
+
+  const primaryByCategory = {
+    CatF: { HR: '0', Tech: '0', Env: '0' },
+    CatG: { effectIndex: '0,0,0,0,0,0,0,0,0,0,0' },
+    CatH: { effectIndex: '0', ppl: `${pplTile},${pplSide}` },
+    CatK: { src, dst, amount: '1' }
+  };
+
+  const candidates = [];
+  if (primaryByCategory[category]) candidates.push(primaryByCategory[category]);
+  candidates.push({});
+  candidates.push({ cancel: '1' });
+  candidates.push({ canceltiles: '0' });
+  candidates.push({ cancel: '1', canceltiles: '0' });
+
+  const seen = new Set();
+  return candidates.filter(c => {
+    const key = JSON.stringify(c);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function autoRunTryAction(playerId, type) {
+  const endpoint = '/action';
+  if (type === 'resolve_feedback') {
+    const candidates = [];
+    const tiles = autoRunPickAdoptTiles();
+    for (const tile of tiles) candidates.push({ target_tile: String(tile), decision: 'allow' });
+    const cy = Number(latestGameState?.params?.cybernationLevel || 0);
+    if (cy > 0) {
+      for (const tile of tiles) candidates.push({ target_tile: String(tile), decision: 'cancel' });
+    }
+    for (const params of candidates) {
+      const body = { playerId, type, params };
+      const result = await postActionBody(body, endpoint);
+      if (result && result.status === 0) return { ok: true, body, result };
+    }
+    return { ok: false };
+  }
+
+  if (type === 'resolve_disruption') {
+    const candidates = autoRunBuildResolveDisruptionCandidates();
+    for (const params of candidates) {
+      const body = { playerId, type, params };
+      const result = await postActionBody(body, endpoint);
+      if (result && result.status === 0) return { ok: true, body, result };
+    }
+    return { ok: false };
+  }
+
+  const body = { playerId, type, params: {} };
+  const result = await postActionBody(body, endpoint);
+  return { ok: result && result.status === 0, body, result };
+}
+
+function syncInputsFromActionBody(body) {
+  if (!body || typeof body !== 'object') return;
+  if (body.playerId !== undefined) document.getElementById('playerIdInput').value = String(body.playerId);
+  if (body.type) document.getElementById('actionTypeInput').value = String(body.type);
+  document.getElementById('paramsInput').value = JSON.stringify(body.params || {});
+}
+
+function stopAutoRun(reason = 'stopped') {
+  autoRunEnabled = false;
+  autoRunBusy = false;
+  autoRunSessionId = null;
+  if (autoRunTimer) {
+    clearTimeout(autoRunTimer);
+    autoRunTimer = null;
+  }
+  document.getElementById('autoRunBtn').textContent = 'Start auto-run (controlled)';
+  updateAutoRunStatus('Auto-run: ' + reason, reason.includes('fail'));
+}
+
+async function autoRunStep() {
+  if (!autoRunEnabled || autoRunBusy) return;
+  autoRunBusy = true;
+  try {
+    const refreshed = await fetchState();
+    if (!refreshed) {
+      autoRunFailStreak++;
+      if (autoRunFailStreak >= 8) return stopAutoRun('failed: cannot refresh /state');
+      return;
+    }
+    if (!currentCtrl || !latestGameState) {
+      autoRunFailStreak++;
+      if (autoRunFailStreak >= 8) return stopAutoRun('failed: no controller');
+      return;
+    }
+    if (!autoRunSessionId && lastServerSessionId) {
+      autoRunSessionId = lastServerSessionId;
+    }
+    if (currentCtrl.gameOver) return stopAutoRun('game over');
+
+    if (currentCtrl.phase !== autoRunLastPhase && currentCtrl.phase === 'ADOPT') {
+      autoRunAdoptUsedTiles.clear();
+    }
+    autoRunLastPhase = currentCtrl.phase;
+
+    const allowed = Array.isArray(currentCtrl.allowed_actions) ? currentCtrl.allowed_actions : [];
+    if (allowed.length === 0) {
+      autoRunFailStreak++;
+      if (autoRunFailStreak >= 8) return stopAutoRun('failed: no allowed actions');
+      return;
+    }
+    let type = currentCtrl.recommended_action || allowed[0];
+    if (currentCtrl.phase === 'ENVISION' && allowed.includes('pass')) type = 'pass';
+
+    const playerId = Number.isInteger(currentCtrl.currentPlayerId) ? currentCtrl.currentPlayerId : (currentCtrl.next_player_id || 0);
+    const runResult = await autoRunTryAction(playerId, type);
+
+    if (!runResult.ok) {
+      autoRunFailStreak++;
+      if (autoRunFailStreak >= 8) return stopAutoRun('failed: too many invalid actions');
+      return;
+    }
+
+    autoRunFailStreak = 0;
+    autoRunStepCount++;
+    syncInputsFromActionBody(runResult.body);
+    if (runResult.body.type === 'resolve_feedback' && runResult.body.params && runResult.body.params.target_tile !== undefined) {
+      autoRunAdoptUsedTiles.add(parseInt(runResult.body.params.target_tile, 10));
+    }
+    updateAutoRunStatus(`Auto-run: running, step=${autoRunStepCount}, phase=${currentCtrl.phase}`);
+  } finally {
+    autoRunBusy = false;
+    if (autoRunEnabled) {
+      const delay = Math.max(30, parseInt(document.getElementById('autoRunDelayInput').value, 10) || 440);
+      autoRunTimer = setTimeout(autoRunStep, delay);
+    }
+  }
+}
+
+function toggleAutoRun() {
+  if (autoRunEnabled) {
+    stopAutoRun('stopped by user');
+    return;
+  }
+  if (!roundControlMode) {
+    roundControlMode = true;
+    setModeUI();
+  }
+  autoRunEnabled = true;
+  autoRunBusy = false;
+  autoRunStepCount = 0;
+  autoRunFailStreak = 0;
+  autoRunAdoptUsedTiles.clear();
+  autoRunLastPhase = null;
+  autoRunSessionId = lastServerSessionId;
+  document.getElementById('autoRunBtn').textContent = 'Stop auto-run';
+  updateAutoRunStatus('Auto-run: starting...');
+  autoRunStep();
 }
 
 document.getElementById('sendBtn').onclick = sendAction;
 document.getElementById('refreshBtn').onclick = fetchState;
+document.getElementById('resetBtn').onclick = resetGameRoom;
 document.getElementById('modeToggleBtn').onclick = toggleRoundControlMode;
 document.getElementById('applySuggestBtn').onclick = () => applySuggestionsToInputs(true);
+document.getElementById('autoRunBtn').onclick = toggleAutoRun;
 document.getElementById('phaseSelect').addEventListener('change', renderQuickActions);
 document.getElementById('playerIdInput').addEventListener('input', () => validateControlledInputs());
-document.getElementById('actionTypeInput').addEventListener('input', () => validateControlledInputs());
+document.getElementById('actionTypeInput').addEventListener('input', () => {
+  validateControlledInputs();
+  maybeSuggestResolveDisruptionParams();
+});
 document.getElementById('useRawRequestToggle').addEventListener('change', () => validateControlledInputs());
 document.getElementById('rawRequestInput').addEventListener('input', () => {
   if (!document.getElementById('useRawRequestToggle').checked) return;
