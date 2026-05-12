@@ -199,10 +199,28 @@ nlohmann::json GameState::toJson() const
 
     // Game progress
     j["ignoreCohesionLossThisRound"] = ignoreCohesionLossThisRound;
+    nlohmann::json goalConditions = nlohmann::json::array();
+    for (const auto& condition : currentGoal.getConditions()) {
+        nlohmann::json item = {
+            {"type", condition.type},
+            {"compare", comparatorToStr(condition.op)},
+            {"num", condition.num}
+        };
+        if (condition.position.has_value())
+            item["position"] = condition.position.value();
+        goalConditions.push_back(item);
+    }
+    nlohmann::json goalStartEffect = nlohmann::json::object();
+    for (const auto& [stackType, positions] : currentGoal.getStackEffect()) {
+        goalStartEffect[stackTypeToStr(stackType)] = positions;
+    }
     j["activeGoal"] = {
         {"id", currentGoal.getId()},
         {"name", currentGoal.getName()},
-        {"met", isActiveGoalMet()}
+        {"met", isActiveGoalMet()},
+        {"reverseGoalId", currentGoal.getReverseGoalId()},
+        {"conditions", goalConditions},
+        {"startEffect", goalStartEffect}
     };
 
     // Parameters
@@ -222,11 +240,16 @@ nlohmann::json GameState::toJson() const
         for (const auto& [from, to] : stack.getPaths()) {
             paths[std::to_string(t.stackSideToBoardSide(from))] = t.stackSideToBoardSide(to);
         }
+        nlohmann::json sideResources = nlohmann::json::object();
+        for (int side = 0; side < Tile::TILE_SIDES; ++side) {
+            sideResources[std::to_string(side)] = t.getSideResources(side);
+        }
         j["board"].push_back({
             {"position", t.getPosition()},
             {"type",     stackTypeToStr(t.getEffectiveType())},
             {"rotation", t.getRotation()},
-            {"paths",    paths}
+            {"paths",    paths},
+            {"sideResources", sideResources}
         });
     }
 
@@ -294,10 +317,64 @@ nlohmann::json GameState::toJson() const
     }
 
     if (activeDisruption.has_value()) {
+        auto effectPairToJson = [](const std::pair<DisruptionEffect, int>& effect) {
+            nlohmann::json item;
+            item["effect"] = cyberParameterToLabel(disruptionEffectToCyberParameter(effect.first));
+            switch (effect.first) {
+                case DisruptionEffect::TURN_WASTE: item["effect"] = "TurnWaste"; break;
+                case DisruptionEffect::TURN_WILD: item["effect"] = "TurnWild"; break;
+                case DisruptionEffect::TURN_DEV_A: item["effect"] = "TurnDevA"; break;
+                case DisruptionEffect::TURN_DEV_B: item["effect"] = "TurnDevB"; break;
+                case DisruptionEffect::RESOURCES: item["effect"] = "Resources"; break;
+                case DisruptionEffect::TOKEN: item["effect"] = "Token"; break;
+                case DisruptionEffect::TRADE: item["effect"] = "Trade"; break;
+                case DisruptionEffect::CAP_ENV: item["effect"] = "CapEnv"; break;
+                case DisruptionEffect::IGNORE_COHESION_EFFECT: item["effect"] = "IgnoreCohesionEffect"; break;
+                case DisruptionEffect::SWAP_GOAL: item["effect"] = "SwapGoal"; break;
+                case DisruptionEffect::DRAW_GOAL: item["effect"] = "DrawGoal"; break;
+                case DisruptionEffect::MOVE_PEOPLE: item["effect"] = "MovePpl"; break;
+                default: break;
+            }
+            item["amount"] = effect.second;
+            return item;
+        };
+        nlohmann::json effects = nlohmann::json::array();
+        for (const auto& effect : activeDisruption->getEffects())
+            effects.push_back(effectPairToJson(effect));
+        nlohmann::json costs = nlohmann::json::array();
+        for (const auto& cost : activeDisruption->getCosts())
+            costs.push_back(effectPairToJson(cost));
+        nlohmann::json optionalCosts = nlohmann::json::array();
+        for (const auto& cost : activeDisruption->getOptionalCosts())
+            optionalCosts.push_back(effectPairToJson(cost));
+        nlohmann::json optionalGains = nlohmann::json::array();
+        for (const auto& gain : activeDisruption->getOptionalGains())
+            optionalGains.push_back(effectPairToJson(gain));
+        std::string conditionType = "none";
+        switch (activeDisruption->getConditionType()) {
+            case ConditionType::STACK: conditionType = "stack"; break;
+            case ConditionType::RESOURCE: conditionType = "resource"; break;
+            case ConditionType::NONE:
+            default: break;
+        }
+        nlohmann::json stackCondition = nlohmann::json::array();
+        if (activeDisruption->getStackCondition().has_value()) {
+            for (const auto& stackType : activeDisruption->getStackCondition()->stackTypes)
+                stackCondition.push_back(stackTypeToStr(stackType));
+        }
         j["activeDisruption"] = {
             {"name",        activeDisruption->getName()},
+            {"description", activeDisruption->getDescription()},
             {"category",    activeDisruption->getCategory()},
-            {"cancellable", activeDisruption->isCancellable()}
+            {"cancellable", activeDisruption->isCancellable()},
+            {"conditionType", conditionType},
+            {"stackCondition", stackCondition},
+            {"stackTargets", activeDisruption->getStackTargets()},
+            {"affectedPositions", activeDisruption->getStackTargets()},
+            {"effects", effects},
+            {"costs", costs},
+            {"optionalCosts", optionalCosts},
+            {"optionalGains", optionalGains}
         };
     } else {
         j["activeDisruption"] = nullptr;

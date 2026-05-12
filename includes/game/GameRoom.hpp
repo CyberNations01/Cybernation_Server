@@ -34,6 +34,7 @@ public:
     
     // Process a player action. Returns what happened.
     ActionResult receiveAction(const Action& action);
+    void continueFromCurrentState();
 
     std::string getSnapshot() const;
     std::string getControllerSnapshot() const;

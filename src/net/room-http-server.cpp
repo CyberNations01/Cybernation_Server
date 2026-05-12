@@ -84,9 +84,21 @@ int main()
     int nextConnId = 1;
     int nextSessionId = 1;
 
-    Room room([&](int connId, std::string msg) {
-        outbox[connId].push_back(normalizeRoomMessage(msg));
-    });
+    auto makeRoom = [&]() {
+        return Room([&](int connId, std::string msg) {
+            outbox[connId].push_back(normalizeRoomMessage(msg));
+        });
+    };
+
+    Room room = makeRoom();
+
+    auto resetRoom = [&]() {
+        outbox.clear();
+        sessionToConn.clear();
+        nextConnId = 1;
+        nextSessionId = 1;
+        room = makeRoom();
+    };
 
     server.set_default_headers({
         {"Access-Control-Allow-Origin", "*"},
@@ -101,6 +113,17 @@ int main()
     server.Get("/state", [&](const httplib::Request&, httplib::Response& res) {
         json response = normalizedSnapshot(room);
         response["roomState"] = roomStateToStr(room.getRoomState());
+        res.set_content(response.dump(2), "application/json");
+    });
+
+    server.Post("/reset", [&](const httplib::Request&, httplib::Response& res) {
+        resetRoom();
+        json response = normalizedSnapshot(room);
+        response["roomState"] = roomStateToStr(room.getRoomState());
+        response["message"] = {
+            {"type", "reset"},
+            {"payload", "Room reset"}
+        };
         res.set_content(response.dump(2), "application/json");
     });
 
@@ -146,6 +169,39 @@ int main()
             {"playerId", room.getPlayerIdForConnection(connId)},
             {"roomState", roomStateToStr(room.getRoomState())},
             {"messages", drainMessages(outbox, connId)}
+        };
+        response["snapshot"] = normalizedSnapshot(room);
+        res.set_content(response.dump(2), "application/json");
+    });
+
+    server.Post("/continue", [&](const httplib::Request& req, httplib::Response& res) {
+        json body = json::parse(req.body, nullptr, false);
+        if (body.is_discarded() || !body.contains("sessionId")) {
+            res.status = 400;
+            res.set_content(R"({"error":"missing sessionId"})", "application/json");
+            return;
+        }
+
+        const std::string sessionId = body.value("sessionId", "");
+        auto sessionIt = sessionToConn.find(sessionId);
+        if (sessionIt == sessionToConn.end()) {
+            res.status = 403;
+            res.set_content(R"({"error":"unknown sessionId"})", "application/json");
+            return;
+        }
+
+        room.continueGame();
+        const int connId = sessionIt->second;
+        json response = {
+            {"sessionId", sessionId},
+            {"connId", connId},
+            {"playerId", room.getPlayerIdForConnection(connId)},
+            {"roomState", roomStateToStr(room.getRoomState())},
+            {"messages", drainMessages(outbox, connId)}
+        };
+        response["message"] = {
+            {"type", "continue"},
+            {"payload", "Game continued from current state"}
         };
         response["snapshot"] = normalizedSnapshot(room);
         res.set_content(response.dump(2), "application/json");

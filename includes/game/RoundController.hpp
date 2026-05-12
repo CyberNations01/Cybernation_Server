@@ -15,6 +15,7 @@ public:
 
     RoundController(GameState& state);
     ActionResult processAction(const Action& action, GameState& state);
+    void continueFromCurrentState(GameState& state);
 
     int            getCurrentPlayerId() const { return currentPlayerId; };
     GamePhase      getCurrentPhase()    const { return currentPhase; };

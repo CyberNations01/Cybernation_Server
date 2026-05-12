@@ -11,6 +11,20 @@ RoundController::RoundController(GameState& state)
     adoptHandler.preparePhase(state);
 }
 
+void RoundController::continueFromCurrentState(GameState& state)
+{
+    currentRound = 1;
+    currentPhase = GamePhase::ENVISION;
+    gameOver = false;
+    traverse_record.stage = 0;
+    adopt_record.pendingDisruptionResolution = false;
+    adopt_record.completeAfterPendingResolution = false;
+    adopt_record.pendingPlayerId = -1;
+    syncFirstPlayerFromState(state);
+    resetRound(GamePhase::ENVISION);
+    adoptHandler.preparePhase(state);
+}
+
 ActionResult RoundController::processAction(const Action& action, GameState& state)
 {
     if (action.playerId != currentPlayerId)

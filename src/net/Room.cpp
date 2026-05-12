@@ -40,6 +40,13 @@ void Room::startGame()
     broadcast(gameRoom.getSnapshot());
 }
 
+void Room::continueGame()
+{
+    roomState = ROOM_STATE::PLAYING;
+    gameRoom.continueFromCurrentState();
+    broadcast(gameRoom.getSnapshot());
+}
+
 std::string Room::getSnapshot() const
 {
     return gameRoom.getSnapshot();

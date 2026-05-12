@@ -295,7 +295,9 @@ GameUtility::cancelOnTiles(GameState & state,
     const auto &stackTarget = card.getStackTargets();
 
 
-    if (clientReq.find("canceltiles") == clientReq.end()) {
+    const bool cancelAll = clientReq.find("cancel") != clientReq.end() &&
+                           clientReq.at("cancel") == "1";
+    if (clientReq.find("canceltiles") == clientReq.end() && !cancelAll) {
         for (auto t : stackTarget)
             effectiveStackTarget.push_back(t);
         return std::nullopt;
@@ -304,7 +306,7 @@ GameUtility::cancelOnTiles(GameState & state,
     if (!card.isCancellable())
         return ActionResult::invalid("Card is not cancellable\n");
 
-    auto list = parseIntList(clientReq.at("canceltiles"));
+    auto list = cancelAll ? stackTarget : parseIntList(clientReq.at("canceltiles"));
     if (list.empty())
         return ActionResult::invalid(
             "canceltiles cannot be empty — omit the canceltiles field entirely to accept the full effect "

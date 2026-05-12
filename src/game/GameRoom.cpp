@@ -18,6 +18,11 @@ ActionResult GameRoom::receiveAction(const Action& action)
     return controller.processAction(action, state);
 }
 
+void GameRoom::continueFromCurrentState()
+{
+    controller.continueFromCurrentState(state);
+}
+
 std::string GameRoom::getSnapshot() const
 {
     nlohmann::json combined;

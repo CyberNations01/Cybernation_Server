@@ -25,6 +25,7 @@ public:
     void onAction(int conn_id, Action action);
     void removePlayer(int conn_id);
     void startGame();
+    void continueGame();
     std::string getSnapshot() const;
     ROOM_STATE getRoomState() const { return roomState; }
     int getPlayerIdForConnection(int conn_id) const;
