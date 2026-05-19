@@ -5,7 +5,7 @@
         "description": "For each affected Stack, turn into waste unless pay 1 cybernation level",
         "conditionType": "none",
         "condition": {},
-        "stackTarget": [0, 1, 5, 8, 10],
+        "stackTarget": [0, 2, 5, 8, 9],
         "effect": [{"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
         "cancel": true
@@ -16,7 +16,7 @@
         "description": "For each affected Stack, turn into waste unless pay 1 cybernation level",
         "conditionType": "none",
         "condition": {},
-        "stackTarget": [0, 3, 6, 7, 9],
+        "stackTarget": [0, 3, 6, 7, 10],
         "effect": [{"TurnWaste": 1}],
         "cost": [{"Cy": -1}],
         "cancel": true

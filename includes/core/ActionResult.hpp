@@ -6,6 +6,7 @@
 struct ActionMessage {
     std::string type;
     std::string payload;
+
     ActionMessage() = default;
     ActionMessage(const std::string& t, const std::string& p)
     : type(t), payload(p) {}

@@ -33,11 +33,12 @@ class Tile {
         const TokenEffect&       getToken()         const {return token;};
 
         const StackType&         getEffectiveType() const;
-        // ! TODO : Consider Rotation
         const int&                                     getNeighbourTile(const int& side) const;
         const int&                                     getNeighbourSide(int side) const;
         const std::vector<std::pair<int,int>>&         getNeighbours() const { return neighbours; }
         const std::vector<std::string>                 getSideResources(int side)  const;
+        int                                            boardSideToStackSide(int boardSide) const;
+        int                                            stackSideToBoardSide(int stackSide) const;
 
         void    setNeighbour(const std::vector<std::pair<int,int>>& nTile) {neighbours = nTile;};
         void    setToken(const TokenEffect &token) {this->token = token;};

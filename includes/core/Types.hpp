@@ -1,6 +1,7 @@
 #ifndef TYPES_HPP
 #define TYPES_HPP
 #include <string>
+#include <optional>
 
 enum class StackType {
     WILD,
@@ -64,8 +65,9 @@ enum class DisruptionEffect {
 
 enum class ActionStatus {
     SUCCESS,            // Action executed successfully
-    INVALID_ACTION,     // Action not allowed in this phase
-    INVALID_TARGET,     // Target (stack, player, etc.) is invalid
+    INVALID_TARGET,            
+    INVALID_ACTION,
+
     INSUFFICIENT_RESOURCE, // Not enough resources to perform action
     NOT_YOUR_TURN,      // Silently ignored by Round Controller
     PLAYER_ALREADY_PASSED, // Player has already passed this phase
@@ -210,6 +212,24 @@ inline CyberParameter disruptionEffectToCyberParameter(const DisruptionEffect& e
     }
 }
 
+inline std::optional<CyberParameter> tryDisruptionEffectToCyberParameter(const DisruptionEffect& eff)
+{
+    switch (eff) {
+        case DisruptionEffect::CYBERNATION:
+            return CyberParameter::CYBERNATION_LEVEL;
+        case DisruptionEffect::COHESION:
+            return CyberParameter::COHESION;
+        case DisruptionEffect::HUMAN_RELATION:
+            return CyberParameter::HUMAN_RELATION;
+        case DisruptionEffect::TECHNOLOGY:
+            return CyberParameter::TECHNOLOGY;
+        case DisruptionEffect::ENVIRONMENT:
+            return CyberParameter::ENVIRONMENT;
+        default:
+            return std::nullopt;
+    }
+}
+
 inline comparator strToComparator(const std::string& str)
 {
     if (str == "GT") return comparator::GT;
@@ -261,4 +281,20 @@ inline bool compareWithOp(int lhs, comparator op, int rhs) {
     }
 }
 
+inline std::string actionStatusToStr(ActionStatus status) {
+    switch (status) {
+        case ActionStatus::SUCCESS:
+            return "success";
+        case ActionStatus::INVALID_TARGET:
+            return "Invalid Target";
+        case ActionStatus::INVALID_ACTION:
+            return "Invalid Action";
+        case ActionStatus::UNKNOWN_ERROR:
+            return "Unknown Error";
+        default:
+            return "Invalid";   
+    };
+
+    return "";
+}
 #endif

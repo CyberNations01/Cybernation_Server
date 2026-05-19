@@ -10,7 +10,7 @@
  * The Phase Handler validates WHAT is being done.
  *
  * The `type` field determines the action kind (e.g. "pass", "place_token", 
- * "trade", "claim_first_player", "cancel_disruption", etc.)
+ * "trade", "claim_first_player", "resolve_disruption", etc.)
  * 
  * The `params` map holds action-specific data (e.g. target stack, token type, 
  * trade amounts, etc.)

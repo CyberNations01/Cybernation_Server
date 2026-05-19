@@ -60,10 +60,8 @@ bool FeedbackTokenManager::drawTrackFromBag(int trackSize) {
     if (bag.empty() || trackSize <= 0) return false;
 
     shuffleBag();
-    track = bag;
-
-    if (static_cast<int>(track.size()) > trackSize) {
-        track.resize(trackSize);
-    }
+    const int drawCount = std::min(trackSize, static_cast<int>(bag.size()));
+    track.assign(bag.begin(), bag.begin() + drawCount);
+    bag.erase(bag.begin(), bag.begin() + drawCount);
     return true;
 }

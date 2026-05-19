@@ -1,11 +1,24 @@
 #include "game/GameUtility.hpp"
 #include <sstream>
+#include <algorithm>
+#include <optional>
 
 namespace {
-void clearActiveDisruption(GameState& state) {
-    state.activeDisruption = std::nullopt;
-}
+    void clearActiveDisruption(GameState& state) {
+        state.activeDisruption = std::nullopt;
+    }
+
+    void applyResource(GameState& state, const std::string& r) {
+        if (r == "HR")        state.params.adjustParam(CyberParameter::HUMAN_RELATION, 1);
+        else if (r == "Tech") state.params.adjustParam(CyberParameter::TECHNOLOGY, 1);
+        else if (r == "Env")  state.params.adjustParam(CyberParameter::ENVIRONMENT, 1);
+        else if (r == "-Co")  state.params.adjustParam(CyberParameter::COHESION, -1);
+    }
+
 }  // namespace
+
+
+
 
 nlohmann::json 
 GameUtility::pathResultToJson(const int& tile, const int& side, 
@@ -54,34 +67,38 @@ ActionResult GameUtility::walkPath(GameState &state)
         }
 
 
-        connectedSide = travereStack.getConnectedSide(tokenLocation.second);
+        const int entryBoardSide = tokenLocation.second;
+        const int entryStackSide = currentTile.boardSideToStackSide(entryBoardSide);
+        connectedSide = travereStack.getConnectedSide(entryStackSide);
         if (connectedSide == -1) 
             break;
+        const int exitBoardSide = currentTile.stackSideToBoardSide(connectedSide);
         
         /* 2. Resource Collection 
             - If Overlay Stack exist, collect both stack resources
             - Collect resources for both of the connected sides 
         */ 
-        resources = baseStack.getSides()[tokenLocation.second];
-        resJson.push_back(pathResultToJson(tokenLocation.first, tokenLocation.second, resources, "base"));
+        auto collectAndApply = [&](const Stack& stack, int stackSide, int boardSide, const std::string& layer) {
+            const auto& resources = stack.getSides()[stackSide];
+            resJson.push_back(pathResultToJson(tokenLocation.first, boardSide, resources, layer));
+            for (const auto& r : resources)
+                applyResource(state, r);
+        };
 
-        resources = baseStack.getSides()[connectedSide];
-        resJson.push_back(pathResultToJson(tokenLocation.first, connectedSide, resources, "base"));
+        collectAndApply(baseStack, entryStackSide, entryBoardSide, "base");
+        collectAndApply(baseStack, connectedSide, exitBoardSide, "base");
 
         if (currentTile.hasOverlay()) {
-            resources = overlayStack.getSides()[tokenLocation.second];
-            resJson.push_back(pathResultToJson(tokenLocation.first, tokenLocation.second, resources, "overlay"));
-
-            resources = overlayStack.getSides()[connectedSide];
-            resJson.push_back(pathResultToJson(tokenLocation.first, connectedSide, resources, "overlay"));
+            collectAndApply(overlayStack, entryStackSide, entryBoardSide, "overlay");
+            collectAndApply(overlayStack, connectedSide, exitBoardSide, "overlay");
         }
 
         /*! 3. Update tokenLocation */ 
-        std::pair<int,int> next = currentTile.getNeighbours()[connectedSide];
+        std::pair<int,int> next = currentTile.getNeighbours()[exitBoardSide];
         if (next.first < 0  || next.second < 0 ||
             next.first  >= GameState::NUM_TILE   || 
-            next.second >= GameState::NUM_TILE) {
-                tokenLocation.second = connectedSide;
+            next.second >= Tile::TILE_SIDES) {
+                tokenLocation.second = exitBoardSide;
                 break;
         }
 
@@ -207,6 +224,28 @@ void GameUtility::changeTileStack(GameState& state,
     }
 }
 
+void GameUtility::applyDisruptionStackOrParamOnTile(GameState& state, int tilePos,
+                                                    const std::pair<DisruptionEffect, int>& e)
+{
+    switch (e.first) {
+        case DisruptionEffect::TURN_WILD:
+            changeTileStack(state, tilePos, StackType::WILD);
+            return;
+        case DisruptionEffect::TURN_WASTE:
+            changeTileStack(state, tilePos, StackType::WASTE);
+            return;
+        case DisruptionEffect::TURN_DEV_A:
+            changeTileStack(state, tilePos, StackType::DEV_A);
+            return;
+        case DisruptionEffect::TURN_DEV_B:
+            changeTileStack(state, tilePos, StackType::DEV_B);
+            return;
+        default:
+            resolveParamEffect(state, e);
+            return;
+    }
+}
+
 
 static std::vector<int> parseIntList(const std::string& s)
 {
@@ -218,6 +257,19 @@ static std::vector<int> parseIntList(const std::string& s)
     }
     return result;
 }
+
+namespace {
+
+void payResourceCostDelta(GameState& state, DisruptionEffect e, int delta)
+{
+    if (e == DisruptionEffect::COHESION && delta < 0 && state.ignoreCohesionLossThisRound)
+        return;
+    auto p = tryDisruptionEffectToCyberParameter(e);
+    if (p.has_value())
+        state.params.adjustParam(*p, delta);
+}
+
+}  // namespace
 
 /**
  * cancelOnTiles: Let player pay cost to skip card effects on chosen tiles
@@ -243,7 +295,9 @@ GameUtility::cancelOnTiles(GameState & state,
     const auto &stackTarget = card.getStackTargets();
 
 
-    if (clientReq.find("canceltiles") == clientReq.end()) {
+    const bool cancelAll = clientReq.find("cancel") != clientReq.end() &&
+                           clientReq.at("cancel") == "1";
+    if (clientReq.find("canceltiles") == clientReq.end() && !cancelAll) {
         for (auto t : stackTarget)
             effectiveStackTarget.push_back(t);
         return std::nullopt;
@@ -252,7 +306,16 @@ GameUtility::cancelOnTiles(GameState & state,
     if (!card.isCancellable())
         return ActionResult::invalid("Card is not cancellable\n");
 
-    auto list = parseIntList(clientReq.at("canceltiles"));
+    auto list = cancelAll ? stackTarget : parseIntList(clientReq.at("canceltiles"));
+    if (list.empty())
+        return ActionResult::invalid(
+            "canceltiles cannot be empty — omit the canceltiles field entirely to accept the full effect "
+            "on all targets without paying cancel costs");
+
+    for (int ct : list) {
+        if (std::find(stackTarget.begin(), stackTarget.end(), ct) == stackTarget.end())
+            return ActionResult::invalid("canceltiles must only list tiles from this card's stackTarget");
+    }
     std::set<int> cancelTiles = std::set<int>(list.begin(), list.end());
 
     for (auto t : stackTarget) {
@@ -262,13 +325,15 @@ GameUtility::cancelOnTiles(GameState & state,
 
     std::pair<DisruptionEffect, int> costPair = card.getCosts()[0];
     int costOnCancel = (stackTarget.size() - effectiveStackTarget.size()) * costPair.second;
-    CyberParameter costParam = disruptionEffectToCyberParameter(costPair.first);
+    auto costParamOpt = tryDisruptionEffectToCyberParameter(costPair.first);
+    if (!costParamOpt.has_value())
+        return ActionResult::invalid(
+            "Cancel cost type on this card is not a resource (use Cy/Co/HR/Tech/Env in disruption.json cost)");
 
-    if (state.params.getParamAmount(costParam) < std::abs(costOnCancel))
+    if (state.params.getParamAmount(*costParamOpt) < std::abs(costOnCancel))
         return ActionResult::invalid("Not enough resources to cancel");
 
-    // ! Apply cancel cost to GameState
-    resolveParamEffect(state, {costPair.first, costOnCancel});
+    payResourceCostDelta(state, costPair.first, costOnCancel);
 
     return std::nullopt;
 }
@@ -374,10 +439,12 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
                 return err.value();
             
             effectiveStackTarget = filterTilesByStackCondition(state, effectiveStackTarget, card);
-            for (int i = 0; i < effectiveStackTarget.size(); i++) {
+            for (int t : effectiveStackTarget) {
                 for (const auto &e: card.getEffects())
-                    resolveParamEffect(state, e);
+                    applyDisruptionStackOrParamOnTile(state, t, e);
             }
+            state.rebuildTokenBag();
+            effectiveStackTarget.clear(); // applied above; skip duplicate pass at end of applyDisruptionEffect
         }
 
         else if (card.getConditionType() == ConditionType::RESOURCE) {
@@ -588,9 +655,10 @@ ActionResult GameUtility::applyDisruptionEffect(GameState& state, const Action& 
     /* Apply stack & tile effect */
     if (!effectiveStackTarget.empty()) {
         for (auto t : effectiveStackTarget) {
-            for (auto& e : card.getEffects())
-                resolveParamEffect(state, e);
+            for (const auto& e : card.getEffects())
+                GameUtility::applyDisruptionStackOrParamOnTile(state, t, e);
         }
+        state.rebuildTokenBag();
     }
 
     clearActiveDisruption(state);

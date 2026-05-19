@@ -237,16 +237,20 @@ int main() {
         expectTrue(run(adopt, state, a, "named_apply").ok(), "named apply");
     }
 
-    // --- 4) draw, then cancel/resolve on a known card (random draw may need extra params to cancel)
+    // --- 4) ADOPT should reject standalone draw_disruption in controlled flow
     forceTrack(state, {TokenEffect::TURN_WILD});
-    expectTrue(run(adopt, state, makeAdoptAction("draw_disruption"), "draw").ok(), "draw from deck");
-    expectTrue(state.activeDisruption.has_value(), "active after draw");
+    expectTrue(!run(adopt, state, makeAdoptAction("draw_disruption"), "draw").ok(),
+               "draw_disruption is not valid in Adopt");
 
     forceTrack(state, {TokenEffect::TURN_WILD});
     state.params.setCybernationLevel(10);
     state.activeDisruption = requireCardByName(state, "HURRICANE_1");
-    expectTrue(run(adopt, state, makeAdoptAction("cancel_disruption"), "cancel_known").ok(),
-               "cancel_disruption routes to applyDisruptionEffect(cancel=1)");
+    {
+        Action a = makeAdoptAction("resolve_disruption");
+        a.params["cancel"] = "1";
+        expectTrue(run(adopt, state, a, "cancel_known").ok(),
+                   "resolve_disruption+cancel routes to applyDisruptionEffect(cancel=1)");
+    }
     forceTrack(state, {TokenEffect::TURN_WILD});
     state.activeDisruption = requireCardByName(state, "HURRICANE_1");
     state.params.setCybernationLevel(20);

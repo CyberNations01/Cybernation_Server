@@ -24,6 +24,8 @@ SOURCES = $(SRCDIR)/core/Params.cpp \
           $(SRCDIR)/phase/TraversePhaseHandler.cpp \
           $(SRCDIR)/phase/AdoptPhaseHandler.cpp \
           $(SRCDIR)/game/GameUtility.cpp \
+		  $(SRCDIR)/net/Room.cpp \
+
 #           $(SRCDIR)/test/EnvisionPhaseTest.cpp
 
 
@@ -58,15 +60,22 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 
 SERVER_TARGET = out/server
 SERVER_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/net/http-server.o
+ROOM_SERVER_TARGET = out/room-server
+ROOM_SERVER_OBJECTS = $(COMMON_OBJECTS) $(OBJDIR)/net/room-http-server.o
 
 server: $(SERVER_TARGET)
+room-server: $(ROOM_SERVER_TARGET)
 
 $(SERVER_TARGET): $(SERVER_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread
 
+$(ROOM_SERVER_TARGET): $(ROOM_SERVER_OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread
+
 clean:
-	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET) $(SERVER_TARGET)
+	rm -rf $(OBJDIR) $(LOAD_TARGET) $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET) $(SERVER_TARGET) $(ROOM_SERVER_TARGET)
 
 adapt-sim: $(ADAPT_TARGET)
 disruption-categories: $(CATEGORY_TARGET)
@@ -77,4 +86,4 @@ test-all: $(ADAPT_TARGET) $(CATEGORY_TARGET) $(TRAVERSE_TARGET)
 	./$(TRAVERSE_TARGET)
 	./$(ADAPT_TARGET)
 
-.PHONY: all clean adapt-sim disruption-categories traverse-test test-all server
+.PHONY: all clean adapt-sim disruption-categories traverse-test test-all server room-server
